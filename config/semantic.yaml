@@ -1,0 +1,119 @@
+table: customers
+grain: One row per customer, snapshot taken at the end of Q3. 7043 rows.
+
+columns:
+  customer_id:      {role: id, desc: Unique customer identifier}
+
+  gender:           {role: protected, desc: Customer gender, values: [Female, Male]}
+  age:              {role: protected, desc: Age in years}
+  under_30:         {role: protected, desc: 1 if under 30}
+  senior_citizen:   {role: protected, desc: 1 if 65 or older}
+  married:          {role: protected, desc: 1 if married}
+  partner:          {role: protected, desc: 1 if has a partner}
+  dependents:       {role: protected, desc: 1 if has dependents}
+  number_of_dependents: {role: protected, desc: Count of dependents}
+
+  city:             {role: geo, desc: California city name, 1106 distinct values}
+  zip_code:         {role: geo, desc: Postal code}
+  latitude:         {role: geo, desc: Latitude}
+  longitude:        {role: geo, desc: Longitude}
+  population:       {role: geo, desc: Population of the customer's zip code}
+
+  customer_status:  {role: outcome, desc: Status at end of Q3, values: [Churned, Stayed, Joined]}
+  churn:            {role: outcome, desc: 1 if the customer churned in Q3. The churn metric}
+  churn_category:   {role: outcome, desc: Category of exit reason, only meaningful when churn = 1, values: [Attitude, Competitor, Dissatisfaction, Other, Price, Not Churned]}
+  churn_reason:     {role: outcome, desc: Free-text exit reason, only meaningful when churn = 1, 20 distinct values}
+
+  satisfaction_score: {role: leaky, desc: 1-5 survey score collected at exit. Scores 1-2 are 100% churners and 4-5 are 0% churners, so it encodes the answer}
+  churn_score:      {role: leaky, desc: Vendor propensity score 0-100 built from the outcome. Encodes the answer}
+
+  contract:         {role: account, desc: Contract term, values: [Month-to-Month, One Year, Two Year]}
+  tenure_in_months: {role: account, desc: Months since joining, 1-72}
+  offer:            {role: account, desc: Last marketing offer accepted, values: [Offer A, Offer B, Offer C, Offer D, Offer E, None]}
+  payment_method:   {role: account, desc: How the customer pays, values: [Bank Withdrawal, Credit Card, Mailed Check]}
+  paperless_billing: {role: account, desc: 1 if paperless billing}
+  referred_a_friend: {role: account, desc: 1 if the customer referred anyone}
+  number_of_referrals: {role: account, desc: Count of referrals made}
+
+  phone_service:    {role: service, desc: 1 if subscribed to phone service}
+  multiple_lines:   {role: service, desc: 1 if multiple phone lines}
+  internet_service: {role: service, desc: 1 if subscribed to internet}
+  internet_type:    {role: service, desc: Internet technology, values: [Cable, DSL, Fiber Optic, No Internet]}
+  online_security:  {role: service, desc: 1 if add-on online security}
+  online_backup:    {role: service, desc: 1 if add-on online backup}
+  device_protection_plan: {role: service, desc: 1 if add-on device protection}
+  premium_tech_support: {role: service, desc: 1 if add-on premium tech support}
+  streaming_tv:     {role: service, desc: 1 if streams TV}
+  streaming_movies: {role: service, desc: 1 if streams movies}
+  streaming_music:  {role: service, desc: 1 if streams music}
+  unlimited_data:   {role: service, desc: 1 if on an unlimited data plan}
+  avg_monthly_gb_download: {role: service, desc: Average monthly download in GB}
+  avg_monthly_long_distance_charges: {role: service, desc: Average monthly long distance charge in USD}
+
+  monthly_charge:   {role: billing, desc: Current monthly charge in USD. The MRR of a customer}
+  total_charges:    {role: billing, desc: Cumulative charges to date in USD, grows with tenure}
+  total_refunds:    {role: billing, desc: Cumulative refunds in USD}
+  total_extra_data_charges: {role: billing, desc: Cumulative overage charges in USD}
+  total_long_distance_charges: {role: billing, desc: Cumulative long distance charges in USD}
+  total_revenue:    {role: billing, desc: Cumulative revenue in USD, roughly monthly_charge x tenure. Not a rate}
+  cltv:             {role: billing, desc: Vendor lifetime value estimate, 2003-6500}
+
+  is_active:        {role: derived, desc: 1 when customer_status is not Churned. Use for "current customers"}
+  arr:              {role: derived, desc: Annualised run rate, monthly_charge x 12}
+  num_addons:       {role: derived, desc: Count of the 7 add-on services held, 0-7}
+  tenure_bucket:    {role: derived, desc: Tenure band, values: ["0-6m", "7-12m", "13-24m", "25-48m", "49m+"]}
+
+metrics:
+  churn_rate: AVG(churn)
+  churned_customers: SUM(churn)
+  mrr_lost: SUM(monthly_charge) FILTER (WHERE churn = 1)
+  arr_lost: SUM(arr) FILTER (WHERE churn = 1)
+  avg_tenure: AVG(tenure_in_months)
+
+traps:
+  - Churn here is a single quarter (Q3). Always call it a quarterly rate, never annual.
+  - satisfaction_score and churn_score are recorded at exit and separate churners almost perfectly. Never use them to explain or predict churn. If asked, say so and use contract, tenure, internet_type or add-ons instead.
+  - churn_category and churn_reason are set to 'Not Churned' for everyone who stayed. Always add WHERE churn = 1 when analysing reasons, or the counts are meaningless.
+  - 454 customers have status Joined. They arrived during Q3 and had almost no chance to churn, which lowers rates. Still include them by default, as the verified examples do, so the same question always returns the same number; say so in assumptions. Exclude them only when the user asks.
+  - 1106 cities cover 7043 customers, so most cities have a handful of rows. Always return COUNT(*) alongside a city-level rate and warn when a group is small.
+  - offer is confounded with tenure. Offer A holders average 70 months and Offer E holders 3.7 months, so Offer E's high churn is mostly a new-customer effect, not a bad offer.
+  - Every customer is in California and in Q3, so there is no geographic or time-series comparison to make.
+  - total_charges and total_revenue are cumulative and grow with tenure. For revenue exposure use monthly_charge or arr.
+
+defaults:
+  current customers: is_active = 1
+  new customers: tenure_in_months <= 6
+  high value customers: arr in the top quartile
+  churn rate: AVG(churn) across all customers unless the question narrows it
+
+examples:
+  - q: What is the overall churn rate?
+    sql: SELECT AVG(churn) AS churn_rate, COUNT(*) AS n FROM customers
+  - q: How many customers churned?
+    sql: SELECT SUM(churn) AS churned_customers FROM customers
+  - q: Churn rate by contract type
+    sql: SELECT contract, COUNT(*) AS n, AVG(churn) AS churn_rate FROM customers GROUP BY contract ORDER BY churn_rate DESC
+  - q: Churn rate for fiber customers by contract
+    sql: SELECT contract, COUNT(*) AS n, AVG(churn) AS churn_rate FROM customers WHERE internet_type = 'Fiber Optic' GROUP BY contract ORDER BY churn_rate DESC
+  - q: How much monthly recurring revenue did we lose to churn?
+    sql: SELECT SUM(monthly_charge) FILTER (WHERE churn = 1) AS mrr_lost FROM customers
+  - q: Why do customers leave?
+    sql: SELECT churn_category, COUNT(*) AS n FROM customers WHERE churn = 1 GROUP BY churn_category ORDER BY n DESC
+  - q: Top churn reasons among fiber customers
+    sql: SELECT churn_reason, COUNT(*) AS n FROM customers WHERE churn = 1 AND internet_type = 'Fiber Optic' GROUP BY churn_reason ORDER BY n DESC LIMIT 10
+  - q: Churn rate by tenure bucket
+    sql: SELECT tenure_bucket, COUNT(*) AS n, AVG(churn) AS churn_rate FROM customers GROUP BY tenure_bucket ORDER BY tenure_bucket
+  - q: Do customers with online security churn less?
+    sql: SELECT online_security, COUNT(*) AS n, AVG(churn) AS churn_rate FROM customers GROUP BY online_security
+  - q: Average monthly charge of churners versus stayers
+    sql: SELECT churn, COUNT(*) AS n, AVG(monthly_charge) AS avg_monthly_charge FROM customers GROUP BY churn
+  - q: Which payment method has the worst churn?
+    sql: SELECT payment_method, COUNT(*) AS n, AVG(churn) AS churn_rate FROM customers GROUP BY payment_method ORDER BY churn_rate DESC
+  - q: Revenue lost from customers who left for a competitor in their first year
+    sql: SELECT COUNT(*) AS n, SUM(arr) AS arr_lost FROM customers WHERE churn = 1 AND churn_category = 'Competitor' AND tenure_in_months <= 12
+  - q: How many current customers are on month-to-month contracts?
+    sql: SELECT COUNT(*) AS n FROM customers WHERE is_active = 1 AND contract = 'Month-to-Month'
+  - q: Churn rate by number of add-on services
+    sql: SELECT num_addons, COUNT(*) AS n, AVG(churn) AS churn_rate FROM customers GROUP BY num_addons ORDER BY num_addons
+  - q: Which cities have the worst churn?
+    sql: SELECT city, COUNT(*) AS n, AVG(churn) AS churn_rate FROM customers GROUP BY city HAVING COUNT(*) >= 30 ORDER BY churn_rate DESC LIMIT 10

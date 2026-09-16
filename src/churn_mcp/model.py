@@ -1,0 +1,178 @@
+import json
+from dataclasses import asdict
+
+import duckdb
+import numpy as np
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import StratifiedKFold, cross_val_predict
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+from churn_mcp.config import TelcoChurnMcpConfig
+from churn_mcp.exceptions import LeakyFeature, ModelCardMissing
+from churn_mcp.models import ModelCard, RiskRanking, SemanticLayer, Trained
+
+FEATURE_ROLES = frozenset({"account", "service", "billing", "derived"})
+
+ALWAYS_EXCLUDED = {
+    "is_active": "derived from the outcome (is_active = 1 - churn)",
+    "arr": "exactly monthly_charge x 12, so it would count one signal twice",
+}
+
+CATEGORICAL_FEATURES = frozenset(
+    {"contract", "offer", "payment_method", "internet_type", "tenure_bucket"}
+)
+
+
+def check_firewall(columns: list[str], layer: SemanticLayer, config: TelcoChurnMcpConfig) -> None:
+    for column in columns:
+        role = layer.columns[column].role
+        if role in ("outcome", "leaky"):
+            raise LeakyFeature(column, f"role is '{role}', which encodes the outcome")
+        if role == "protected" and config.ml.exclude_protected:
+            raise LeakyFeature(column, "protected attribute, excluded by default")
+        if column in ALWAYS_EXCLUDED:
+            raise LeakyFeature(column, ALWAYS_EXCLUDED[column])
+
+
+def feature_columns(layer: SemanticLayer, config: TelcoChurnMcpConfig) -> list[str]:
+    allowed_roles = set(FEATURE_ROLES)
+    if not config.ml.exclude_protected:
+        allowed_roles.add("protected")
+    return [
+        c.name
+        for c in layer.columns.values()
+        if c.role in allowed_roles and c.name not in ALWAYS_EXCLUDED
+    ]
+
+
+def _pipeline(columns: list[str], seed: int) -> Pipeline:
+    categorical = [c for c in columns if c in CATEGORICAL_FEATURES]
+    numeric = [c for c in columns if c not in CATEGORICAL_FEATURES]
+    preprocess = ColumnTransformer(
+        [
+            ("cat", OneHotEncoder(drop="first", handle_unknown="ignore"), categorical),
+            ("num", StandardScaler(), numeric),
+        ]
+    )
+    return Pipeline(
+        [
+            ("preprocess", preprocess),
+            ("model", LogisticRegression(max_iter=1000, random_state=seed)),
+        ]
+    )
+
+
+def _frame(con: duckdb.DuckDBPyConnection, columns: list[str]) -> pd.DataFrame:
+    cols = ", ".join([*columns, "churn", "arr", "is_active", "customer_id"])
+    return con.execute(f"SELECT {cols} FROM customers").fetchdf()
+
+
+def train(
+    con: duckdb.DuckDBPyConnection,
+    layer: SemanticLayer,
+    config: TelcoChurnMcpConfig,
+    columns: list[str] | None = None,
+) -> Trained:
+    columns = columns if columns is not None else feature_columns(layer, config)
+    check_firewall(columns, layer, config)
+    return _fit(con, columns, config)
+
+
+def _fit(
+    con: duckdb.DuckDBPyConnection, columns: list[str], config: TelcoChurnMcpConfig
+) -> Trained:
+    frame = _frame(con, columns)
+    x, y = frame[columns], frame["churn"]
+    cv = StratifiedKFold(n_splits=config.ml.cv_folds, shuffle=True, random_state=config.ml.seed)
+    pipeline = _pipeline(columns, config.ml.seed)
+
+    oof_proba = cross_val_predict(pipeline, x, y, cv=cv, method="predict_proba")[:, 1]
+    auc = roc_auc_score(y, oof_proba)
+
+    pipeline.fit(x, y)
+    names = tuple(pipeline.named_steps["preprocess"].get_feature_names_out())
+    return Trained(pipeline=pipeline, oof_proba=oof_proba, auc=auc, feature_names=names)
+
+
+def at_risk_customers(
+    con: duckdb.DuckDBPyConnection,
+    layer: SemanticLayer,
+    config: TelcoChurnMcpConfig,
+    top_n: int = 20,
+) -> list[RiskRanking]:
+    columns = feature_columns(layer, config)
+    trained = train(con, layer, config, columns)
+
+    frame = _frame(con, columns)
+    preprocess = trained.pipeline.named_steps["preprocess"]
+    model = trained.pipeline.named_steps["model"]
+    transformed = preprocess.transform(frame[columns])
+    transformed = np.asarray(
+        transformed.todense() if hasattr(transformed, "todense") else transformed
+    )
+    coef = model.coef_[0]
+
+    active = frame[frame["is_active"] == 1].copy()
+    active["proba"] = trained.oof_proba[active.index]
+    active["expected_loss"] = active["proba"] * active["arr"]
+    ranked = active.sort_values("expected_loss", ascending=False).head(top_n)
+
+    rankings = []
+    for row_position in ranked.index:
+        contributions = transformed[row_position] * coef
+        order = np.argsort(-np.abs(contributions))[:3]
+        reasons = tuple((trained.feature_names[i], float(contributions[i])) for i in order)
+        customer = ranked.loc[row_position]
+        rankings.append(
+            RiskRanking(
+                customer_id=str(customer["customer_id"]),
+                probability=float(customer["proba"]),
+                arr=float(customer["arr"]),
+                expected_loss=float(customer["expected_loss"]),
+                reasons=reasons,
+            )
+        )
+    return rankings
+
+
+def build_model_card(
+    con: duckdb.DuckDBPyConnection, layer: SemanticLayer, config: TelcoChurnMcpConfig
+) -> ModelCard:
+    clean = train(con, layer, config)
+    leaky_features = layer.leaky()
+    # The one deliberate firewall bypass: measure how much the blocked columns would
+    # inflate AUC, so the card can show why they are blocked.
+    leaky = _fit(con, [*feature_columns(layer, config), *leaky_features], config)
+    return ModelCard(
+        model=type(clean.pipeline.named_steps["model"]).__name__,
+        auc=clean.auc,
+        leaky_features=leaky_features,
+        auc_with_leaky_features=leaky.auc,
+        features=clean.feature_names,
+        cv_folds=config.ml.cv_folds,
+        rows=len(clean.oof_proba),
+        protected_excluded=config.ml.exclude_protected,
+    )
+
+
+def write_model_card(card: ModelCard, config: TelcoChurnMcpConfig) -> None:
+    path = config.data.artifacts_dir / "model_card.json"
+    path.write_text(json.dumps(asdict(card), indent=2))
+
+
+def load_model_card(config: TelcoChurnMcpConfig) -> ModelCard:
+    path = config.data.artifacts_dir / "model_card.json"
+    if not path.exists():
+        raise ModelCardMissing()
+    raw = json.loads(path.read_text())
+    return ModelCard(
+        **{
+            **raw,
+            "leaky_features": tuple(raw["leaky_features"]),
+            "features": tuple(raw["features"]),
+        }
+    )

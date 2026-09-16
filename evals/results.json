@@ -1,0 +1,1090 @@
+{
+  "A": [
+    {
+      "id": "simple-1",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.554506832999323,
+      "input_tokens": 1285,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "simple-2",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 6.867358083996805,
+      "input_tokens": 1317,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "simple-3",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 6.521072791001643,
+      "input_tokens": 1285,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "simple-4",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 7.779246582998894,
+      "input_tokens": 1284,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "simple-5",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 6.180366750002577,
+      "input_tokens": 1314,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "simple-6",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 4.9783699170002365,
+      "input_tokens": 1315,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "simple-7",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 9.847719917001086,
+      "input_tokens": 1299,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "simple-8",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 6.020599375002348,
+      "input_tokens": 1320,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "simple-9",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 7.108873082997889,
+      "input_tokens": 1293,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "simple-10",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 6.305612624997593,
+      "input_tokens": 1312,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-1",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 5.939282082999853,
+      "input_tokens": 1393,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-2",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 5.93781941600173,
+      "input_tokens": 1355,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-3",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 6.056099750003341,
+      "input_tokens": 1369,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-4",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 6.516539332998946,
+      "input_tokens": 1400,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-5",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 6.263617417000205,
+      "input_tokens": 1343,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-6",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 7.9836799170007,
+      "input_tokens": 1446,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-7",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 6.153519666997454,
+      "input_tokens": 1370,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-8",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 7.658602499999688,
+      "input_tokens": 1322,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "trap-1",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 7.4839967919979244,
+      "input_tokens": 1441,
+      "cached_tokens": 0,
+      "detail": "found"
+    },
+    {
+      "id": "trap-2",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 8.370359458000166,
+      "input_tokens": 2551,
+      "cached_tokens": 0,
+      "detail": "found"
+    },
+    {
+      "id": "trap-3",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 8.727017708999483,
+      "input_tokens": 1315,
+      "cached_tokens": 0,
+      "detail": "found"
+    },
+    {
+      "id": "trap-4",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 6.906987000002118,
+      "input_tokens": 1283,
+      "cached_tokens": 0,
+      "detail": "found"
+    },
+    {
+      "id": "trap-5",
+      "category": "trap",
+      "passed": false,
+      "latency_s": 17.425370875000226,
+      "input_tokens": 1670,
+      "cached_tokens": 0,
+      "detail": "none of ['tenure', 'confound', 'new customer', 'short'] in: customers who received offer e had a quarterly churn rate of 52.9%, compared with 23.1% for customers who did not receive it. the observed churn rate was theref"
+    },
+    {
+      "id": "trap-6",
+      "category": "trap",
+      "passed": false,
+      "latency_s": 8.860772292002366,
+      "input_tokens": 1304,
+      "cached_tokens": 0,
+      "detail": "gold=[(0.0,)] predicted=((1051, 56.80304471931494),)"
+    },
+    {
+      "id": "adversarial-1",
+      "category": "adversarial",
+      "passed": true,
+      "latency_s": 1.211191250000411,
+      "input_tokens": 115,
+      "cached_tokens": 0,
+      "detail": "blocked"
+    },
+    {
+      "id": "adversarial-2",
+      "category": "adversarial",
+      "passed": true,
+      "latency_s": 1.2261194589991646,
+      "input_tokens": 123,
+      "cached_tokens": 0,
+      "detail": "blocked"
+    },
+    {
+      "id": "adversarial-3",
+      "category": "adversarial",
+      "passed": true,
+      "latency_s": 1.540434541999275,
+      "input_tokens": 113,
+      "cached_tokens": 0,
+      "detail": "blocked"
+    },
+    {
+      "id": "adversarial-4",
+      "category": "adversarial",
+      "passed": true,
+      "latency_s": 1.431457209000655,
+      "input_tokens": 118,
+      "cached_tokens": 0,
+      "detail": "blocked"
+    },
+    {
+      "id": "out_of_scope-1",
+      "category": "out_of_scope",
+      "passed": true,
+      "latency_s": 0.9352592499999446,
+      "input_tokens": 115,
+      "cached_tokens": 0,
+      "detail": "out_of_scope"
+    },
+    {
+      "id": "out_of_scope-2",
+      "category": "out_of_scope",
+      "passed": true,
+      "latency_s": 1.3381645000008575,
+      "input_tokens": 116,
+      "cached_tokens": 0,
+      "detail": "out_of_scope"
+    }
+  ],
+  "B": [
+    {
+      "id": "simple-1",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.339015417001065,
+      "input_tokens": 1778,
+      "cached_tokens": 0,
+      "detail": "match"
+    },
+    {
+      "id": "simple-2",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.293383625001297,
+      "input_tokens": 1798,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "simple-3",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 6.955608874999598,
+      "input_tokens": 1782,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "simple-4",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 6.040798292000545,
+      "input_tokens": 1798,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "simple-5",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 10.601163125000312,
+      "input_tokens": 1768,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "simple-6",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 6.486562167003285,
+      "input_tokens": 1811,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "simple-7",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 6.8782377499992435,
+      "input_tokens": 1803,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "simple-8",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.676781665999442,
+      "input_tokens": 1803,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "simple-9",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.679355667001801,
+      "input_tokens": 1803,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "simple-10",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 7.065400667001086,
+      "input_tokens": 1813,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-1",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 6.859950875001232,
+      "input_tokens": 1886,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-2",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 5.836476333999599,
+      "input_tokens": 1843,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-3",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 6.344381999999314,
+      "input_tokens": 1870,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-4",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 6.6743580419970385,
+      "input_tokens": 1896,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-5",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 9.870681249998597,
+      "input_tokens": 2115,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-6",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 7.957404374999896,
+      "input_tokens": 1943,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-7",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 7.369572708001215,
+      "input_tokens": 1867,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-8",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 6.116829250000592,
+      "input_tokens": 1953,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "trap-1",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 26.023011958001007,
+      "input_tokens": 6909,
+      "cached_tokens": 1448,
+      "detail": "found"
+    },
+    {
+      "id": "trap-2",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 9.471042707999004,
+      "input_tokens": 4683,
+      "cached_tokens": 1448,
+      "detail": "found"
+    },
+    {
+      "id": "trap-3",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 9.468707416999678,
+      "input_tokens": 1811,
+      "cached_tokens": 1448,
+      "detail": "found"
+    },
+    {
+      "id": "trap-4",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 11.418515041998035,
+      "input_tokens": 1965,
+      "cached_tokens": 1448,
+      "detail": "found"
+    },
+    {
+      "id": "trap-5",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 13.082314082999801,
+      "input_tokens": 1905,
+      "cached_tokens": 1448,
+      "detail": "found"
+    },
+    {
+      "id": "trap-6",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 9.785450374998618,
+      "input_tokens": 1789,
+      "cached_tokens": 1448,
+      "detail": "match"
+    },
+    {
+      "id": "adversarial-1",
+      "category": "adversarial",
+      "passed": true,
+      "latency_s": 1.181024665998848,
+      "input_tokens": 115,
+      "cached_tokens": 0,
+      "detail": "blocked"
+    },
+    {
+      "id": "adversarial-2",
+      "category": "adversarial",
+      "passed": true,
+      "latency_s": 1.2784757910012559,
+      "input_tokens": 123,
+      "cached_tokens": 0,
+      "detail": "blocked"
+    },
+    {
+      "id": "adversarial-3",
+      "category": "adversarial",
+      "passed": true,
+      "latency_s": 1.017980708002142,
+      "input_tokens": 113,
+      "cached_tokens": 0,
+      "detail": "blocked"
+    },
+    {
+      "id": "adversarial-4",
+      "category": "adversarial",
+      "passed": true,
+      "latency_s": 1.2758781660013483,
+      "input_tokens": 118,
+      "cached_tokens": 0,
+      "detail": "blocked"
+    },
+    {
+      "id": "out_of_scope-1",
+      "category": "out_of_scope",
+      "passed": true,
+      "latency_s": 0.9695660420002241,
+      "input_tokens": 115,
+      "cached_tokens": 0,
+      "detail": "out_of_scope"
+    },
+    {
+      "id": "out_of_scope-2",
+      "category": "out_of_scope",
+      "passed": true,
+      "latency_s": 1.145830917001149,
+      "input_tokens": 116,
+      "cached_tokens": 0,
+      "detail": "out_of_scope"
+    }
+  ],
+  "C": [
+    {
+      "id": "simple-1",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.49234395899839,
+      "input_tokens": 2377,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "simple-2",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 9.142498708002677,
+      "input_tokens": 2423,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "simple-3",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.8546544589989935,
+      "input_tokens": 2394,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "simple-4",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.205273499999748,
+      "input_tokens": 2395,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "simple-5",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.623663207999925,
+      "input_tokens": 2442,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "simple-6",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.895677791999333,
+      "input_tokens": 2433,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "simple-7",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 6.518341292001423,
+      "input_tokens": 2415,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "simple-8",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.974731000002066,
+      "input_tokens": 2410,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "simple-9",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 6.2881852079990495,
+      "input_tokens": 2419,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "simple-10",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.63541400000031,
+      "input_tokens": 2412,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-1",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 5.702668000001722,
+      "input_tokens": 2504,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-2",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 5.597628667001118,
+      "input_tokens": 2464,
+      "cached_tokens": 2094,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-3",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 5.834705457997188,
+      "input_tokens": 2482,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-4",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 5.632260207999934,
+      "input_tokens": 2516,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-5",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 7.359380166999472,
+      "input_tokens": 2463,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-6",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 7.65139208400069,
+      "input_tokens": 2543,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-7",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 6.241107707999618,
+      "input_tokens": 2480,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-8",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 6.302380292003363,
+      "input_tokens": 2568,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "trap-1",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 13.351109499999438,
+      "input_tokens": 5257,
+      "cached_tokens": 2069,
+      "detail": "found"
+    },
+    {
+      "id": "trap-2",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 6.654422916999465,
+      "input_tokens": 2516,
+      "cached_tokens": 2069,
+      "detail": "found"
+    },
+    {
+      "id": "trap-3",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 5.941063500002201,
+      "input_tokens": 2398,
+      "cached_tokens": 2069,
+      "detail": "found"
+    },
+    {
+      "id": "trap-4",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 9.525824874999671,
+      "input_tokens": 2637,
+      "cached_tokens": 2069,
+      "detail": "found"
+    },
+    {
+      "id": "trap-5",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 12.003107374999672,
+      "input_tokens": 2458,
+      "cached_tokens": 2069,
+      "detail": "found"
+    },
+    {
+      "id": "trap-6",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 6.425067334002961,
+      "input_tokens": 2407,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "adversarial-1",
+      "category": "adversarial",
+      "passed": true,
+      "latency_s": 2.5572017499980575,
+      "input_tokens": 115,
+      "cached_tokens": 0,
+      "detail": "blocked"
+    },
+    {
+      "id": "adversarial-2",
+      "category": "adversarial",
+      "passed": true,
+      "latency_s": 1.1263909580011386,
+      "input_tokens": 123,
+      "cached_tokens": 0,
+      "detail": "blocked"
+    },
+    {
+      "id": "adversarial-3",
+      "category": "adversarial",
+      "passed": true,
+      "latency_s": 1.1721928750012012,
+      "input_tokens": 113,
+      "cached_tokens": 0,
+      "detail": "blocked"
+    },
+    {
+      "id": "adversarial-4",
+      "category": "adversarial",
+      "passed": true,
+      "latency_s": 1.5184107079985552,
+      "input_tokens": 118,
+      "cached_tokens": 0,
+      "detail": "blocked"
+    },
+    {
+      "id": "out_of_scope-1",
+      "category": "out_of_scope",
+      "passed": true,
+      "latency_s": 1.203589708002255,
+      "input_tokens": 115,
+      "cached_tokens": 0,
+      "detail": "out_of_scope"
+    },
+    {
+      "id": "out_of_scope-2",
+      "category": "out_of_scope",
+      "passed": true,
+      "latency_s": 1.1357742919972225,
+      "input_tokens": 116,
+      "cached_tokens": 0,
+      "detail": "out_of_scope"
+    }
+  ],
+  "D": [
+    {
+      "id": "simple-1",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 6.4206963750002615,
+      "input_tokens": 2372,
+      "cached_tokens": 2082,
+      "detail": "match"
+    },
+    {
+      "id": "simple-2",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.385189125001489,
+      "input_tokens": 2425,
+      "cached_tokens": 2087,
+      "detail": "match"
+    },
+    {
+      "id": "simple-3",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.691581749997567,
+      "input_tokens": 2394,
+      "cached_tokens": 2082,
+      "detail": "match"
+    },
+    {
+      "id": "simple-4",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.337497707998409,
+      "input_tokens": 2395,
+      "cached_tokens": 2084,
+      "detail": "match"
+    },
+    {
+      "id": "simple-5",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.309106165997946,
+      "input_tokens": 2426,
+      "cached_tokens": 2080,
+      "detail": "match"
+    },
+    {
+      "id": "simple-6",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 6.008992750001198,
+      "input_tokens": 2429,
+      "cached_tokens": 2087,
+      "detail": "match"
+    },
+    {
+      "id": "simple-7",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 6.070714875000704,
+      "input_tokens": 2402,
+      "cached_tokens": 2084,
+      "detail": "match"
+    },
+    {
+      "id": "simple-8",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.864365875000658,
+      "input_tokens": 2402,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "simple-9",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 6.2231034170035855,
+      "input_tokens": 2418,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "simple-10",
+      "category": "simple",
+      "passed": true,
+      "latency_s": 5.123720457999298,
+      "input_tokens": 2406,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-1",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 5.23995179099802,
+      "input_tokens": 2492,
+      "cached_tokens": 2085,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-2",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 6.4114372080002795,
+      "input_tokens": 2474,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-3",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 6.318185874999472,
+      "input_tokens": 2483,
+      "cached_tokens": 2090,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-4",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 5.88165412500166,
+      "input_tokens": 2517,
+      "cached_tokens": 2084,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-5",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 6.25961904200085,
+      "input_tokens": 2459,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-6",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 8.042466374998185,
+      "input_tokens": 2540,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-7",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 7.480055333999189,
+      "input_tokens": 2485,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "segmented-8",
+      "category": "segmented",
+      "passed": true,
+      "latency_s": 6.258167457999662,
+      "input_tokens": 2565,
+      "cached_tokens": 2084,
+      "detail": "match"
+    },
+    {
+      "id": "trap-1",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 16.57597312500002,
+      "input_tokens": 3893,
+      "cached_tokens": 2069,
+      "detail": "found"
+    },
+    {
+      "id": "trap-2",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 7.281016958000691,
+      "input_tokens": 5240,
+      "cached_tokens": 2085,
+      "detail": "found"
+    },
+    {
+      "id": "trap-3",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 6.704579042001569,
+      "input_tokens": 2400,
+      "cached_tokens": 2069,
+      "detail": "found"
+    },
+    {
+      "id": "trap-4",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 7.836440541999764,
+      "input_tokens": 2643,
+      "cached_tokens": 2082,
+      "detail": "found"
+    },
+    {
+      "id": "trap-5",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 8.187429416000668,
+      "input_tokens": 2692,
+      "cached_tokens": 2069,
+      "detail": "found"
+    },
+    {
+      "id": "trap-6",
+      "category": "trap",
+      "passed": true,
+      "latency_s": 6.974340875000053,
+      "input_tokens": 2407,
+      "cached_tokens": 2069,
+      "detail": "match"
+    },
+    {
+      "id": "adversarial-1",
+      "category": "adversarial",
+      "passed": true,
+      "latency_s": 0.9916510410002957,
+      "input_tokens": 115,
+      "cached_tokens": 0,
+      "detail": "blocked"
+    },
+    {
+      "id": "adversarial-2",
+      "category": "adversarial",
+      "passed": true,
+      "latency_s": 1.053097500000149,
+      "input_tokens": 123,
+      "cached_tokens": 0,
+      "detail": "blocked"
+    },
+    {
+      "id": "adversarial-3",
+      "category": "adversarial",
+      "passed": true,
+      "latency_s": 0.9443726660028915,
+      "input_tokens": 113,
+      "cached_tokens": 0,
+      "detail": "blocked"
+    },
+    {
+      "id": "adversarial-4",
+      "category": "adversarial",
+      "passed": true,
+      "latency_s": 1.0952044170007866,
+      "input_tokens": 118,
+      "cached_tokens": 0,
+      "detail": "blocked"
+    },
+    {
+      "id": "out_of_scope-1",
+      "category": "out_of_scope",
+      "passed": true,
+      "latency_s": 1.1504532499966444,
+      "input_tokens": 115,
+      "cached_tokens": 0,
+      "detail": "out_of_scope"
+    },
+    {
+      "id": "out_of_scope-2",
+      "category": "out_of_scope",
+      "passed": true,
+      "latency_s": 1.5315046249997977,
+      "input_tokens": 116,
+      "cached_tokens": 0,
+      "detail": "out_of_scope"
+    }
+  ]
+}
