@@ -62,6 +62,7 @@ columns:
   arr:              {role: derived, desc: Annualised run rate, monthly_charge x 12}
   num_addons:       {role: derived, desc: Count of the 7 add-on services held, 0-7}
   tenure_bucket:    {role: derived, desc: Tenure band, values: ["0-6m", "7-12m", "13-24m", "25-48m", "49m+"]}
+  referral_bucket:  {role: derived, desc: Referral band. 1 referral churns more than 0 or 2+, values: ["0", "1", "2-3", "4+"]}
 
 metrics:
   churn_rate: AVG(churn)

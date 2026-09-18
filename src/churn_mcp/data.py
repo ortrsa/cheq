@@ -25,6 +25,10 @@ ADDONS = (
 TENURE_EDGES = (0, 6, 12, 24, 48, 1_000)
 TENURE_LABELS = ("0-6m", "7-12m", "13-24m", "25-48m", "49m+")
 
+# Churn is not monotonic in referrals (1 referral churns most), so the model needs a band.
+REFERRAL_EDGES = (-1, 0, 1, 3, 1_000)
+REFERRAL_LABELS = ("0", "1", "2-3", "4+")
+
 
 def _snake(name: str) -> str:
     return re.sub(r"[^0-9a-zA-Z]+", "_", name).strip("_").lower()
@@ -59,6 +63,9 @@ def clean(raw: pd.DataFrame) -> pd.DataFrame:
     df["num_addons"] = df[list(ADDONS)].sum(axis=1)
     df["tenure_bucket"] = pd.cut(
         df["tenure_in_months"], bins=TENURE_EDGES, labels=TENURE_LABELS, right=True
+    ).astype(str)
+    df["referral_bucket"] = pd.cut(
+        df["number_of_referrals"], bins=REFERRAL_EDGES, labels=REFERRAL_LABELS, right=True
     ).astype(str)
     return df
 

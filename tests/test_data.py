@@ -44,6 +44,18 @@ def test_tenure_buckets_cover_every_row(con):
     assert labels == set(data.TENURE_LABELS)
 
 
+def test_referral_buckets_match_the_referral_count(con):
+    rows = con.execute(
+        "SELECT referral_bucket, MIN(number_of_referrals), MAX(number_of_referrals) "
+        "FROM customers GROUP BY referral_bucket ORDER BY referral_bucket"
+    ).fetchall()
+    assert [r[0] for r in rows] == list(data.REFERRAL_LABELS)
+    assert rows[0][1:] == (0, 0)
+    assert rows[1][1:] == (1, 1)
+    assert rows[2][1:] == (2, 3)
+    assert rows[3][1] == 4
+
+
 @pytest.mark.parametrize(
     "sql",
     [

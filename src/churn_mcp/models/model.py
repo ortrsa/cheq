@@ -25,8 +25,6 @@ class RiskRanking:
 class ModelCard:
     model: str
     auc: float
-    leaky_features: tuple[str, ...]
-    auc_with_leaky_features: float
     features: tuple[str, ...]
     cv_folds: int
     rows: int
@@ -36,8 +34,6 @@ class ModelCard:
         return ("metric", "value"), (
             ("model", self.model),
             ("auc", self.auc),
-            ("auc_with_leaky_features", self.auc_with_leaky_features),
-            ("leaky_features", ", ".join(self.leaky_features)),
             ("cv_folds", self.cv_folds),
             ("rows", self.rows),
             ("feature_count", len(self.features)),
@@ -48,9 +44,7 @@ class ModelCard:
         return (
             f"The churn model is {self.model} with an out-of-fold AUC of {self.auc:.3f} "
             f"({self.cv_folds}-fold cross-validation over {self.rows:,} customers, "
-            f"{len(self.features)} encoded features). Adding the leaky columns "
-            f"({', '.join(self.leaky_features)}) would raise it to "
-            f"{self.auc_with_leaky_features:.3f}, which is why they are blocked."
+            f"{len(self.features)} encoded features)."
         )
 
     def caveats(self) -> tuple[str, ...]:

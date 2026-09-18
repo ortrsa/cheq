@@ -25,10 +25,12 @@ ALWAYS_EXCLUDED = {
     "num_addons": "exactly the sum of the seven add-on flags",
     "internet_service": "exactly the inverse of internet_type = 'No Internet'",
     "tenure_in_months": "duplicates tenure_bucket; the bucket keeps the non-linear shape",
+    "number_of_referrals": "linear in a non-linear effect; referral_bucket replaces it",
+    "referred_a_friend": "exactly number_of_referrals > 0; referral_bucket replaces it",
 }
 
 CATEGORICAL_FEATURES = frozenset(
-    {"contract", "offer", "payment_method", "internet_type", "tenure_bucket"}
+    {"contract", "offer", "payment_method", "internet_type", "tenure_bucket", "referral_bucket"}
 )
 
 
@@ -163,15 +165,9 @@ def build_model_card(
     con: duckdb.DuckDBPyConnection, layer: SemanticLayer, config: TelcoChurnMcpConfig
 ) -> ModelCard:
     clean = train(con, layer, config)
-    leaky_features = layer.leaky()
-    # The one deliberate firewall bypass: measure how much the blocked columns would
-    # inflate AUC, so the card can show why they are blocked.
-    leaky = _fit(con, [*feature_columns(layer, config), *leaky_features], config)
     return ModelCard(
         model=type(clean.pipeline.named_steps["model"]).__name__,
         auc=clean.auc,
-        leaky_features=leaky_features,
-        auc_with_leaky_features=leaky.auc,
         features=clean.feature_names,
         cv_folds=config.ml.cv_folds,
         rows=len(clean.oof_proba),
@@ -189,10 +185,4 @@ def load_model_card(config: TelcoChurnMcpConfig) -> ModelCard:
     if not path.exists():
         raise ModelCardMissing()
     raw = json.loads(path.read_text())
-    return ModelCard(
-        **{
-            **raw,
-            "leaky_features": tuple(raw["leaky_features"]),
-            "features": tuple(raw["features"]),
-        }
-    )
+    return ModelCard(**{**raw, "features": tuple(raw["features"])})

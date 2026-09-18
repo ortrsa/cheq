@@ -28,8 +28,6 @@ def sample_card():
     return ModelCard(
         model="LogisticRegression",
         auc=0.8936,
-        leaky_features=("satisfaction_score", "churn_score"),
-        auc_with_leaky_features=0.9981,
         features=("cat__contract_One Year", "num__tenure_in_months", "num__monthly_charge"),
         cv_folds=5,
         rows=7043,

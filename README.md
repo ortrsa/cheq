@@ -95,12 +95,12 @@ Verify with: *"What is the overall churn rate?"* The answer should be **26.5%** 
 | `describe_dataset(columns?)` | Columns, roles, exact values, metrics, traps |
 | `segment_churn(group_by, filters?, top_n=20)` | Churn by segment with CI, lift, q-values |
 | `at_risk_customers(top_n=20)` | Active customers ranked by expected revenue loss |
-| `model_card()` | The model's AUC, leaky-feature AUC and features. Errors clearly before `prepare` |
+| `model_card()` | The model's AUC and features. Errors clearly before `prepare` |
 
 | Resource | Content |
 |---|---|
 | `churn://schema` | Full schema and metric definitions |
-| `churn://model-card` | Model AUC, leaky-feature AUC, features used. Returns `available: false` before `prepare` |
+| `churn://model-card` | Model AUC, features used. Returns `available: false` before `prepare` |
 
 Every tool returns `{result, caveats, meta}`. Errors come back as `result: null` with
 `meta.error`, never as a crash.
@@ -155,12 +155,27 @@ Full results: `evals/report.md` and `evals/results.json`.
 
 ## Model
 
-Logistic regression, 5-fold out-of-fold scoring. The leakage ablation shows why the firewall matters:
+Logistic regression, 5-fold out-of-fold scoring. A one-off leakage ablation shows why the
+firewall matters:
 
 | Features | AUC |
 |---|---|
 | Allowed features only | 0.893 |
 | Plus the leaky columns declared in `semantic.yaml` (`satisfaction_score`, `churn_score`) | 0.998 |
+
+The second row is an experiment, not a model: it is not trained by `prepare` and not returned by
+`model_card`, because a user asking how good the model is should get one number.
+`test_leaky_columns_would_inflate_auc` keeps the claim checked. To reproduce it:
+
+```python
+from churn_mcp import data, model, semantic
+from churn_mcp.config import get_config
+
+config = get_config()
+con, layer = data.connect(config), semantic.load(config)
+columns = [*model.feature_columns(layer, config), *layer.leaky()]
+print(model._fit(con, columns, config).auc)  # bypasses the firewall on purpose
+```
 
 ### Feature choices
 
@@ -177,6 +192,15 @@ A test now checks full rank.
 | `num_addons` | exactly the sum of the seven add-on flags |
 | `internet_service` | exactly the inverse of `internet_type = 'No Internet'` |
 | `tenure_in_months` | duplicates `tenure_bucket`; the bucket keeps the non-linear shape (AUC 0.893 vs 0.892) |
+| `number_of_referrals`, `referred_a_friend` | replaced by `referral_bucket` (0 / 1 / 2-3 / 4+), see below |
+
+Churn is not monotonic in referrals: 33% at 0, 47% at 1, 12% at 2-3, 4% at 4+. A linear model
+can only fit that with two correlated columns of opposite sign (`referred_a_friend` positive,
+`number_of_referrals` negative). Predictions were fine, but the reasons were not: every customer
+who had referred anyone got `referred_a_friend=1` as a risk reason, including customers with 2-3
+referrals, whose referrals actually protect them. `referral_bucket` (built in `data.clean`, like
+`tenure_bucket`) lets the model learn each band directly (1: +1.17, 2-3: -0.68, 4+: -1.82 vs. 0)
+at no AUC cost (0.8933 vs 0.8934), and the reason now reads `referral_bucket=1` only for that group.
 
 `monthly_charge` is kept on purpose. It is the revenue at risk and the lever retention teams
 actually pull. The cost: price is almost fully determined by the services a customer holds
@@ -223,9 +247,6 @@ tests/                      offline tests, LLM mocked
 - Churn is one quarter of one state, so there is no trend or geographic comparison.
 - `at_risk_customers` is correlational. Validate with a holdout before acting on it.
 - Known model limitations, not yet fixed:
-  - `number_of_referrals` is linear, but churn is not: 33% at 0 referrals, 47% at 1, 4-13% at 2+.
-    The model approximates this with two correlated columns of opposite sign, so
-    `referred_a_friend=1` can appear as a risk-raising reason. A 0 / 1 / 2+ category would fix it.
   - The 454 `Joined` customers are trained as non-churners although they joined mid-quarter and
     had little time to churn. Training without them (and still scoring them) is cleaner.
   - `offer` is confounded with tenure (Offer A: 70 months average, Offer E: 3.7), which makes its

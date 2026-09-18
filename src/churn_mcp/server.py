@@ -182,8 +182,7 @@ def build_server(
         )
 
     @mcp.tool(
-        description="Show the churn model's performance: out-of-fold AUC, the AUC it would "
-        "get with a leaky feature (to show why that feature is blocked), features used and "
+        description="Show the churn model's performance: out-of-fold AUC, features used and "
         "CV folds. Use for any question about the model's score, accuracy or quality."
     )
     def model_card() -> dict[str, Any]:
@@ -211,8 +210,7 @@ def build_server(
 
     @mcp.resource(
         "churn://model-card",
-        description="Churn model performance: out-of-fold AUC, AUC with a leaky feature "
-        "for comparison, features used, CV folds.",
+        description="Churn model performance: out-of-fold AUC, features used, CV folds.",
     )
     def model_card_resource() -> dict[str, Any]:
         try:

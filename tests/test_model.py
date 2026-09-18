@@ -1,3 +1,5 @@
+from dataclasses import asdict
+
 import numpy as np
 import pytest
 
@@ -73,10 +75,24 @@ def test_oof_scores_differ_from_in_sample_scores(con, layer, config):
     assert not np.allclose(trained.oof_proba, in_sample)
 
 
-def test_ablation_uses_the_leaky_columns_declared_in_the_semantic_layer(con, layer, config):
+def test_leaky_columns_would_inflate_auc(con, layer, config):
+    """Backs the one-off ablation in the README; the model card no longer reports it."""
+    clean = model.train(con, layer, config)
+    leaky = model._fit(con, [*model.feature_columns(layer, config), *layer.leaky()], config)
+    assert leaky.auc > clean.auc + 0.05
+
+
+def test_model_card_trains_only_the_firewalled_model(con, layer, config, monkeypatch):
+    real_fit = model._fit
+    leaky = set(layer.leaky())
+
+    def fit_without_leaks(con, columns, config):
+        assert not leaky & set(columns)
+        return real_fit(con, columns, config)
+
+    monkeypatch.setattr(model, "_fit", fit_without_leaks)
     card = model.build_model_card(con, layer, config)
-    assert card.leaky_features == layer.leaky()
-    assert card.auc_with_leaky_features > card.auc + 0.05
+    assert not any("leaky" in field for field in asdict(card))
 
 
 def test_model_card_describes_the_trained_model_not_hardcoded_facts(con, layer, config):
@@ -143,6 +159,8 @@ def test_missing_model_card_raises(artifacts_config):
         "num_addons",
         "internet_service",
         "tenure_in_months",
+        "number_of_referrals",
+        "referred_a_friend",
     ],
 )
 def test_each_always_excluded_column_reports_its_own_reason(layer, config, column):
@@ -179,3 +197,10 @@ def test_at_risk_customers_reuses_a_trained_model(con, layer, config, monkeypatc
     trained = model.train(con, layer, config)
     monkeypatch.setattr(model, "train", lambda *a, **k: pytest.fail("retrained"))
     assert model.at_risk_customers(con, layer, config, top_n=3, trained=trained)
+
+
+def test_two_or_more_referrals_is_never_a_risk_reason(con, layer, config):
+    for r in model.at_risk_customers(con, layer, config, top_n=100):
+        names = [name for name, _ in r.reasons]
+        assert "referral_bucket=2-3" not in names
+        assert "referral_bucket=4+" not in names
