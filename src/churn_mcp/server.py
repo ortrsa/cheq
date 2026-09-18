@@ -1,3 +1,4 @@
+import functools
 from dataclasses import asdict
 from typing import Any
 
@@ -8,7 +9,7 @@ from churn_mcp import analytics, model, sql_guard, t2sql
 from churn_mcp.config import TelcoChurnMcpConfig
 from churn_mcp.exceptions import ModelCardMissing, UnknownColumn, UnknownValue
 from churn_mcp.llm import LLM
-from churn_mcp.models import RiskRanking, Segment, SemanticLayer
+from churn_mcp.models import RiskRanking, Segment, SemanticLayer, Trained
 
 DOMAIN_ERRORS = (UnknownColumn, UnknownValue)
 # Bad arguments (including the domain errors) and queries that parse but fail at runtime.
@@ -57,6 +58,12 @@ def build_server(
     llm: LLM | None,
 ) -> MCPServer:
     mcp = MCPServer("telco-churn")
+
+    # Training runs 5-fold cross-validation; do it on first use, not on every call.
+    @functools.cache
+    def trained_model() -> Trained:
+        with con.cursor() as cur:
+            return model.train(cur, layer, config)
 
     @mcp.tool(
         description="Answer a natural-language question about telco customer churn data "
@@ -168,7 +175,7 @@ def build_server(
     )
     def at_risk_customers(top_n: int = 20) -> dict[str, Any]:
         with con.cursor() as cur:
-            rankings = model.at_risk_customers(cur, layer, config, top_n)
+            rankings = model.at_risk_customers(cur, layer, config, top_n, trained_model())
         return envelope(
             [_risk_dict(r) for r in rankings],
             caveats=("Scores are correlational; validate with a holdout before acting on them.",),

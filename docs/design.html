@@ -36,7 +36,7 @@
   <li><b>Sandbox</b>: DuckDB read-only, external access off, configuration locked, so even a SQL the guard missed cannot write or read files.</li>
   <li><b>Grounding</b>: every number in the narrative must match a result cell, or the narrative is withheld and only the table returns.</li>
 </ul>
-<p>Two questions need statistics, not SQL, so they get deterministic tools: <code>segment_churn</code> (Wilson intervals, lift, Benjamini–Hochberg q-values, small-segment suppression) and <code>at_risk_customers</code> (logistic regression, out-of-fold scores, probability × ARR, top-3 reasons). Every response is <code>{result, caveats, meta}</code> with the SQL, assumptions and token usage.</p>
+<p>Two questions need statistics, not SQL, so they get deterministic tools: <code>segment_churn</code> (Wilson intervals, lift, Benjamini–Hochberg q-values, small-segment suppression) and <code>at_risk_customers</code> (logistic regression, out-of-fold scores, probability × ARR, up to 3 risk-raising reasons measured against the average customer). Every response is <code>{result, caveats, meta}</code> with the SQL, assumptions and token usage.</p>
 
 <div class="cols">
 <div>
@@ -45,7 +45,7 @@
   <li><b>SQL, not RAG.</b> Retrieval returns similar rows; it cannot count or average 7,043 of them, so it produces confident wrong numbers on exactly the questions users ask.</li>
   <li><b>Governed, not raw text-to-SQL.</b> Raw generation invents columns, misspells values, and reads a 12-customer city as a trend. Each guard targets one of those failures.</li>
   <li><b>Measured, not assumed.</b> 30 held-out questions, ablation from schema-only to full pipeline: the semantic layer lifts traps from 67% to 100%; full pipeline 100%, all attacks blocked. One run, small set: a regression guard, not a benchmark.</li>
-  <li><b>Leakage treated as a real risk.</b> <code>satisfaction_score</code> is collected at exit and <code>churn_score</code> is built from the outcome. Training on them lifts AUC from 0.894 to 0.998, a model that looks excellent and predicts nothing. The firewall blocks both.</li>
+  <li><b>Leakage treated as a real risk.</b> <code>satisfaction_score</code> is collected at exit and <code>churn_score</code> is built from the outcome. Training on them lifts AUC from 0.893 to 0.998, a model that looks excellent and predicts nothing. The firewall blocks both.</li>
   <li><b>Avoided:</b> vector DB, fine-tuning, autonomous agent loops, a semantic answer cache (similar questions can mean different things), and scope I could not defend line by line.</li>
 </ul>
 </div>
@@ -69,6 +69,7 @@
 <tr><td>Correct SQL, wrong number in the answer</td><td>Grounding check; table-only fallback</td></tr>
 <tr><td>Prompt injection or destructive SQL</td><td>Router refuses first; guard allows only SELECT; read-only, network-disabled sandbox. Adversarial pass rate: 100%</td></tr>
 <tr><td>Misleading analysis</td><td>Traps for leaky fields, quarterly rate, small samples, confounded offers; caveats in every response</td></tr>
+<tr><td>Misleading model explanations</td><td>Redundant features excluded (a test checks full rank); reasons centred on the average customer and risk-raising only. Price is kept by choice, so coefficients read "at the same price"</td></tr>
 <tr><td>Ambiguous question</td><td>Documented defaults ("current customers" = active); assumptions returned with the answer</td></tr>
 <tr><td>"Model score" vs the <code>churn_score</code> column</td><td>Router sends questions about the model to its model card, answered without an LLM; questions about the column still go to SQL</td></tr>
 </table>

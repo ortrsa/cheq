@@ -259,3 +259,14 @@ async def test_concurrent_tool_calls_share_one_connection_safely(mcp):
         ] * 5
         results = await asyncio.gather(*calls)
         assert all(r.structured_content["result"] is not None for r in results)
+
+
+async def test_at_risk_customers_trains_the_model_once(con, layer, config, monkeypatch):
+    calls = []
+    real_train = model.train
+    monkeypatch.setattr(model, "train", lambda *a, **k: calls.append(1) or real_train(*a, **k))
+    app = server.build_server(con, layer, config, MockLLM([]))
+    async with Client(app) as client:
+        await client.call_tool("at_risk_customers", {"top_n": 1})
+        await client.call_tool("at_risk_customers", {"top_n": 1})
+    assert len(calls) == 1

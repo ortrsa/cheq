@@ -20,6 +20,11 @@ FEATURE_ROLES = frozenset({"account", "service", "billing", "derived"})
 ALWAYS_EXCLUDED = {
     "is_active": "derived from the outcome (is_active = 1 - churn)",
     "arr": "exactly monthly_charge x 12, so it would count one signal twice",
+    "total_revenue": "exactly total_charges + long distance + extra data - refunds",
+    "total_charges": "tracks tenure x monthly_charge (r=0.9996), a duplicate of both",
+    "num_addons": "exactly the sum of the seven add-on flags",
+    "internet_service": "exactly the inverse of internet_type = 'No Internet'",
+    "tenure_in_months": "duplicates tenure_bucket; the bucket keeps the non-linear shape",
 }
 
 CATEGORICAL_FEATURES = frozenset(
@@ -98,14 +103,23 @@ def _fit(
     return Trained(pipeline=pipeline, oof_proba=oof_proba, auc=auc, feature_names=names)
 
 
+def _source_column(encoded_name: str) -> str:
+    kind, name = encoded_name.split("__", 1)
+    if kind == "num":
+        return name
+    return next(c for c in CATEGORICAL_FEATURES if name.startswith(f"{c}_"))
+
+
 def at_risk_customers(
     con: duckdb.DuckDBPyConnection,
     layer: SemanticLayer,
     config: TelcoChurnMcpConfig,
     top_n: int = 20,
+    trained: Trained | None = None,
 ) -> list[RiskRanking]:
     columns = feature_columns(layer, config)
-    trained = train(con, layer, config, columns)
+    if trained is None:
+        trained = train(con, layer, config, columns)
 
     frame = _frame(con, columns)
     preprocess = trained.pipeline.named_steps["preprocess"]
@@ -114,7 +128,14 @@ def at_risk_customers(
     transformed = np.asarray(
         transformed.todense() if hasattr(transformed, "todense") else transformed
     )
-    coef = model.coef_[0]
+    # Centre every encoded column, one-hots included, so each contribution is measured
+    # against the average customer rather than against an arbitrary dropped category.
+    contributions = pd.DataFrame(
+        (transformed - transformed.mean(axis=0)) * model.coef_[0],
+        columns=[_source_column(name) for name in trained.feature_names],
+    )
+    # Sum the one-hots back into their source column: one reason per business feature.
+    by_column = contributions.T.groupby(level=0).sum().T
 
     active = frame[frame["is_active"] == 1].copy()
     active["proba"] = trained.oof_proba[active.index]
@@ -123,9 +144,8 @@ def at_risk_customers(
 
     rankings = []
     for row_position in ranked.index:
-        contributions = transformed[row_position] * coef
-        order = np.argsort(-np.abs(contributions))[:3]
-        reasons = tuple((trained.feature_names[i], float(contributions[i])) for i in order)
+        risk_raising = by_column.loc[row_position]
+        top = risk_raising[risk_raising > 0].nlargest(3)
         customer = ranked.loc[row_position]
         rankings.append(
             RiskRanking(
@@ -133,7 +153,7 @@ def at_risk_customers(
                 probability=float(customer["proba"]),
                 arr=float(customer["arr"]),
                 expected_loss=float(customer["expected_loss"]),
-                reasons=reasons,
+                reasons=tuple((f"{c}={customer[c]}", float(v)) for c, v in top.items()),
             )
         )
     return rankings

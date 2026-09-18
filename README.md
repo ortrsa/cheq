@@ -45,7 +45,7 @@ Two questions need more than SQL, so they get deterministic tools:
 - **`segment_churn`**: churn by 1-3 dimensions with Wilson confidence intervals, lift, and
   Benjamini-Hochberg q-values, so "significantly worse" means something. Small segments are flagged.
 - **`at_risk_customers`**: logistic regression scored out-of-fold, ranked by probability x ARR,
-  with the top three reasons per customer. A leakage firewall blocks outcome columns, exit-survey
+  with up to three risk-raising reasons per customer (e.g. `contract=Month-to-Month`). A leakage firewall blocks outcome columns, exit-survey
   fields and protected attributes from training.
 
 ## Quickstart
@@ -159,8 +159,43 @@ Logistic regression, 5-fold out-of-fold scoring. The leakage ablation shows why 
 
 | Features | AUC |
 |---|---|
-| Allowed features only | 0.894 |
+| Allowed features only | 0.893 |
 | Plus the leaky columns declared in `semantic.yaml` (`satisfaction_score`, `churn_score`) | 0.998 |
+
+### Feature choices
+
+Redundant columns are excluded in `ALWAYS_EXCLUDED` (`model.py`), next to `arr`. Each one is an
+exact or near-exact function of other features. They do not change the AUC (0.894 before, 0.893
+after), but with them the design matrix was rank-deficient (42 columns, rank 39), so any single
+coefficient, and every per-customer reason built from it, was one of many equally good answers.
+A test now checks full rank.
+
+| Excluded | Why |
+|---|---|
+| `total_revenue` | exactly `total_charges` + long distance + extra data - refunds |
+| `total_charges` | tenure x `monthly_charge` (r = 0.9996) |
+| `num_addons` | exactly the sum of the seven add-on flags |
+| `internet_service` | exactly the inverse of `internet_type = 'No Internet'` |
+| `tenure_in_months` | duplicates `tenure_bucket`; the bucket keeps the non-linear shape (AUC 0.893 vs 0.892) |
+
+`monthly_charge` is kept on purpose. It is the revenue at risk and the lever retention teams
+actually pull. The cost: price is almost fully determined by the services a customer holds
+(R^2 = 0.993 against internet type and add-ons), so the model reads every other coefficient
+"at the same price". That is why `internet_type = Fiber Optic` gets a negative coefficient even
+though fiber customers churn more (41% vs 27% overall): the fiber effect is carried by the price.
+Read the coefficients as conditional effects, not as standalone drivers.
+
+### How the reasons are computed
+
+For each customer, contribution = coefficient x (value - average customer's value), with
+one-hot columns centred like numeric ones, then summed back to their source column. Only
+contributions that raise risk are returned, largest first, named `column=value`. Before this,
+one-hots were measured against their dropped category while numeric columns were measured
+against the mean, and reasons were ranked by absolute value, so a risk-lowering term (e.g.
+fiber at -1.28) could be listed as a "reason". Reasons are associations, not causes.
+
+The model is trained once per server process, on the first `at_risk_customers` call, instead of
+re-running 5-fold cross-validation on every call.
 
 ## Project layout
 
@@ -187,6 +222,14 @@ tests/                      offline tests, LLM mocked
 
 - Churn is one quarter of one state, so there is no trend or geographic comparison.
 - `at_risk_customers` is correlational. Validate with a holdout before acting on it.
+- Known model limitations, not yet fixed:
+  - `number_of_referrals` is linear, but churn is not: 33% at 0 referrals, 47% at 1, 4-13% at 2+.
+    The model approximates this with two correlated columns of opposite sign, so
+    `referred_a_friend=1` can appear as a risk-raising reason. A 0 / 1 / 2+ category would fix it.
+  - The 454 `Joined` customers are trained as non-churners although they joined mid-quarter and
+    had little time to churn. Training without them (and still scoring them) is cleaner.
+  - `offer` is confounded with tenure (Offer A: 70 months average, Offer E: 3.7), which makes its
+    coefficients misleading while adding almost no AUC.
 - Cut from the full design (`SPEC_telco_churn_mcp.md`): driver analysis, retention campaign
   planning with budget optimisation, grammar-constrained SQL, OpenTelemetry, result caching,
   remote HTTP transport with auth.

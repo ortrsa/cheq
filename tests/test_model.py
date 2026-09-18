@@ -36,7 +36,7 @@ def test_firewall_blocks_is_active_despite_derived_role(layer, config):
 
 
 def test_firewall_allows_ordinary_features(layer, config):
-    model.check_firewall(["contract", "tenure_in_months", "monthly_charge"], layer, config)
+    model.check_firewall(["contract", "tenure_bucket", "monthly_charge"], layer, config)
 
 
 def test_feature_columns_excludes_arr_and_is_active(layer, config):
@@ -133,7 +133,49 @@ def test_missing_model_card_raises(artifacts_config):
         model.load_model_card(artifacts_config)
 
 
-@pytest.mark.parametrize("column", ["is_active", "arr"])
+@pytest.mark.parametrize(
+    "column",
+    [
+        "is_active",
+        "arr",
+        "total_revenue",
+        "total_charges",
+        "num_addons",
+        "internet_service",
+        "tenure_in_months",
+    ],
+)
 def test_each_always_excluded_column_reports_its_own_reason(layer, config, column):
     with pytest.raises(LeakyFeature, match=model.ALWAYS_EXCLUDED[column].split(" ")[0]):
         model.check_firewall([column], layer, config)
+
+
+def test_design_matrix_has_full_rank(con, layer, config):
+    """Exact linear dependencies make per-feature contributions meaningless."""
+    trained = model.train(con, layer, config)
+    columns = model.feature_columns(layer, config)
+    transformed = trained.pipeline.named_steps["preprocess"].transform(
+        model._frame(con, columns)[columns]
+    )
+    matrix = np.column_stack([np.ones(transformed.shape[0]), np.asarray(transformed)])
+    assert np.linalg.matrix_rank(matrix) == matrix.shape[1]
+
+
+def test_at_risk_reasons_only_raise_risk(con, layer, config):
+    for r in model.at_risk_customers(con, layer, config, top_n=20):
+        assert all(value > 0 for _, value in r.reasons)
+
+
+def test_at_risk_reasons_name_the_source_column_and_its_value(con, layer, config):
+    columns = set(model.feature_columns(layer, config))
+    for r in model.at_risk_customers(con, layer, config, top_n=20):
+        for name, _ in r.reasons:
+            column, _, value = name.partition("=")
+            assert column in columns
+            assert value
+
+
+def test_at_risk_customers_reuses_a_trained_model(con, layer, config, monkeypatch):
+    trained = model.train(con, layer, config)
+    monkeypatch.setattr(model, "train", lambda *a, **k: pytest.fail("retrained"))
+    assert model.at_risk_customers(con, layer, config, top_n=3, trained=trained)
