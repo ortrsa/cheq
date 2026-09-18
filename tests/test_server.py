@@ -213,3 +213,49 @@ async def test_every_tool_and_resource_has_a_description(mcp):
             assert tool.description, tool.name
         for resource in (await client.list_resources()).resources:
             assert resource.description, resource.uri
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT CAST('abc' AS INT) AS x FROM customers",
+        "SELECT customer_id::INT AS x FROM customers",
+    ],
+)
+async def test_run_sql_envelopes_runtime_errors(mcp, sql):
+    async with Client(mcp) as client:
+        result = await client.call_tool("run_sql", {"sql": sql})
+        body = result.structured_content
+        assert body["result"] is None
+        assert body["meta"]["error"]
+
+
+async def test_run_sql_rejects_non_positive_max_rows(mcp):
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "run_sql", {"sql": "SELECT COUNT(*) AS n FROM customers", "max_rows": -5}
+        )
+        body = result.structured_content
+        assert body["result"] is None
+        assert "max_rows" in body["meta"]["error"]
+
+
+async def test_segment_churn_rejects_empty_group_by(mcp):
+    async with Client(mcp) as client:
+        result = await client.call_tool("segment_churn", {"group_by": []})
+        body = result.structured_content
+        assert body["result"] is None
+        assert "group_by" in body["meta"]["error"]
+
+
+async def test_concurrent_tool_calls_share_one_connection_safely(mcp):
+    import asyncio
+
+    async with Client(mcp) as client:
+        calls = [
+            client.call_tool("run_sql", {"sql": "SELECT COUNT(*) AS n FROM customers"}),
+            client.call_tool("segment_churn", {"group_by": ["contract"]}),
+            client.call_tool("describe_dataset", {"columns": ["contract"]}),
+        ] * 5
+        results = await asyncio.gather(*calls)
+        assert all(r.structured_content["result"] is not None for r in results)

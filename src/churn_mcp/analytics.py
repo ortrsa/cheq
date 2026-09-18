@@ -47,8 +47,14 @@ def bh_qvalues(pvalues: list[float]) -> list[float]:
     return qvalues
 
 
-def _build_filter_sql(filters: dict[str, FilterValue], layer: SemanticLayer) -> str:
+MAX_GROUP_BY = 3
+
+
+def _build_filter_sql(
+    filters: dict[str, FilterValue], layer: SemanticLayer
+) -> tuple[str, list[str | int | float]]:
     clauses = []
+    params: list[str | int | float] = []
     for column, value in filters.items():
         if column not in layer.names():
             raise UnknownColumn(column, layer.names())
@@ -58,9 +64,10 @@ def _build_filter_sql(filters: dict[str, FilterValue], layer: SemanticLayer) -> 
             for v in values:
                 if str(v) not in domain:
                     raise UnknownValue(column, str(v), domain)
-        literal = ", ".join(f"'{v}'" if isinstance(v, str) else str(v) for v in values)
-        clauses.append(f"{column} IN ({literal})" if len(values) > 1 else f"{column} = {literal}")
-    return " AND ".join(clauses) if clauses else "TRUE"
+        placeholders = ", ".join("?" for _ in values)
+        clauses.append(f"{column} IN ({placeholders})")
+        params.extend(values)
+    return (" AND ".join(clauses) if clauses else "TRUE"), params
 
 
 def segment_churn(
@@ -71,20 +78,25 @@ def segment_churn(
     filters: dict[str, FilterValue] | None = None,
     top_n: int = 20,
 ) -> list[Segment]:
+    if not 1 <= len(group_by) <= MAX_GROUP_BY:
+        raise ValueError(f"group_by needs 1 to {MAX_GROUP_BY} columns, got {len(group_by)}")
     for column in group_by:
         if column not in layer.names():
             raise UnknownColumn(column, layer.names())
 
-    where = _build_filter_sql(filters or {}, layer)
+    where, params = _build_filter_sql(filters or {}, layer)
     dims = ", ".join(group_by)
     rows = con.execute(
         f"SELECT {dims}, COUNT(*) AS n, SUM(churn) AS churned, "
         f"SUM(monthly_charge) FILTER (WHERE churn = 1) AS mrr_lost "
-        f"FROM customers WHERE {where} GROUP BY {dims}"
+        f"FROM customers WHERE {where} GROUP BY {dims}",
+        params,
     ).fetchall()
 
     # A scalar aggregate always returns exactly one row, so fetchone() is never None.
-    totals = con.execute(f"SELECT COUNT(*), SUM(churn) FROM customers WHERE {where}").fetchone()
+    totals = con.execute(
+        f"SELECT COUNT(*), SUM(churn) FROM customers WHERE {where}", params
+    ).fetchone()
     assert totals is not None
     total_n, total_churned = totals
     baseline_rate = total_churned / total_n if total_n else 0.0

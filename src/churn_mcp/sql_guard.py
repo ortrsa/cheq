@@ -1,4 +1,5 @@
 import difflib
+import re
 
 import sqlglot
 from sqlglot import exp
@@ -7,9 +8,20 @@ from churn_mcp.config import TelcoChurnMcpConfig
 from churn_mcp.models import SemanticLayer, Verdict
 
 DENIED_FUNCTIONS = frozenset(
-    {"pragma", "glob", "attach", "detach", "copy", "install", "load", "system", "shell"}
+    {
+        "pragma",
+        "glob",
+        "attach",
+        "detach",
+        "copy",
+        "install",
+        "load",
+        "system",
+        "shell",
+        "current_setting",
+    }
 )
-DENIED_PREFIXES = ("read_", "write_", "parquet_", "sniff_")
+DENIED_PREFIXES = ("read_", "write_", "parquet_", "sniff_", "duckdb_")
 
 AGGREGATES = (exp.Avg, exp.Sum, exp.Min, exp.Max)
 
@@ -31,9 +43,15 @@ def _local_names(tree: exp.Expression) -> set[str]:
     return {n for n in names if n}
 
 
+def _function_name(node: exp.Func) -> str:
+    if isinstance(node, exp.Anonymous):
+        return str(node.this or "").lower()
+    return node.sql_name().lower()
+
+
 def _check_functions(tree: exp.Expression) -> str | None:
-    for node in tree.find_all(exp.Anonymous):
-        name = (node.this or "").lower()
+    for node in tree.find_all(exp.Func):
+        name = _function_name(node)
         if name in DENIED_FUNCTIONS or name.startswith(DENIED_PREFIXES):
             return f"Function '{name}' is not allowed. Query the customers table directly."
     return None
@@ -53,6 +71,8 @@ def _check_tables(tree: exp.Expression, allowed: frozenset[str], local: set[str]
 def _check_columns(tree: exp.Expression, layer: SemanticLayer, local: set[str]) -> str | None:
     known = layer.names()
     for column in tree.find_all(exp.Column):
+        if column.is_star:
+            continue
         name = column.name
         if name and name not in known and name not in local:
             return f"Column '{name}' does not exist.{_suggest(name, known)}"
@@ -86,6 +106,40 @@ def _check_literals(tree: exp.Expression, layer: SemanticLayer) -> str | None:
     return None
 
 
+def _like_regex(pattern: str, ignore_case: bool) -> re.Pattern[str]:
+    regex = re.escape(pattern).replace("%", ".*").replace("_", ".")
+    return re.compile(f"^{regex}$", re.IGNORECASE if ignore_case else 0)
+
+
+def _check_patterns(tree: exp.Expression, layer: SemanticLayer) -> str | None:
+    for match in tree.find_all(exp.Like, exp.ILike):
+        column, pattern = match.this, match.expression
+        if not isinstance(column, exp.Column) or not isinstance(pattern, exp.Literal):
+            continue
+        if not pattern.is_string:
+            continue
+        domain = layer.domain(column.name)
+        if not domain:
+            continue
+        regex = _like_regex(pattern.this, isinstance(match, exp.ILike))
+        if not any(regex.match(v) for v in domain):
+            return (
+                f"'{pattern.this}' matches no value of {column.name}. "
+                f"Valid values: {', '.join(domain)}."
+            )
+    return None
+
+
+def _check_limit(tree: exp.Select) -> str | None:
+    limit = tree.args.get("limit")
+    if limit is None:
+        return None
+    current = limit.expression
+    if isinstance(current, exp.Literal) and current.this.isdigit() and int(current.this) > 0:
+        return None
+    return f"LIMIT must be a positive integer, got {current.sql(dialect='duckdb')}."
+
+
 def _enforce_limit(tree: exp.Select, max_rows: int) -> tuple[exp.Select, str | None]:
     limit = tree.args.get("limit")
     if limit is None:
@@ -107,8 +161,14 @@ def _add_group_count(tree: exp.Select) -> tuple[exp.Select, str | None]:
     return tree.select(exp.alias_(exp.Count(this=exp.Star()), "n")), "added COUNT(*) AS n"
 
 
+def _selects_star(tree: exp.Expression) -> bool:
+    return any(e.is_star for select in tree.find_all(exp.Select) for e in select.expressions)
+
+
 def _leak_warning(tree: exp.Expression, layer: SemanticLayer) -> tuple[str, ...]:
     used = {c.name for c in tree.find_all(exp.Column)}
+    if _selects_star(tree):
+        used |= set(layer.names())
     leaking = sorted(used & set(layer.leaky()))
     if not leaking:
         return ()
@@ -138,6 +198,8 @@ def validate(sql: str, layer: SemanticLayer, config: TelcoChurnMcpConfig) -> Ver
         _check_tables(tree, config.security.allowed_tables, local),
         _check_columns(tree, layer, local),
         _check_literals(tree, layer),
+        _check_patterns(tree, layer),
+        _check_limit(tree),
     ):
         if problem:
             return _blocked(sql, problem)
@@ -154,6 +216,8 @@ def validate(sql: str, layer: SemanticLayer, config: TelcoChurnMcpConfig) -> Ver
 def with_max_rows(config: TelcoChurnMcpConfig, max_rows: int | None) -> TelcoChurnMcpConfig:
     if max_rows is None:
         return config
+    if max_rows < 1:
+        raise ValueError(f"max_rows must be at least 1, got {max_rows}")
     security = config.security.model_copy(
         update={"max_rows": min(max_rows, config.security.max_rows)}
     )

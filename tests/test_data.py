@@ -58,3 +58,17 @@ def test_tenure_buckets_cover_every_row(con):
 def test_connection_rejects_writes_and_file_access(con, sql):
     with pytest.raises(duckdb.Error):
         con.execute(sql)
+
+
+def test_connect_twice_in_one_process(con, config):
+    second = data.connect(config)
+    assert (
+        second.execute("SELECT COUNT(*) FROM customers").fetchone()[0] == config.data.expected_rows
+    )
+    with pytest.raises(duckdb.Error):
+        second.execute("SET enable_external_access = true")
+
+
+def test_cursor_inherits_the_sandbox(con):
+    with con.cursor() as cur, pytest.raises(duckdb.Error):
+        cur.execute("SELECT * FROM read_csv_auto('/etc/passwd')")

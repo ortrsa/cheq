@@ -85,7 +85,11 @@ def connect(config: TelcoChurnMcpConfig) -> duckdb.DuckDBPyConnection:
         raise FileNotFoundError(f"{path} missing, run `churn-mcp prepare` first")
 
     con = duckdb.connect(path, read_only=True)
-    # Lock after disabling access, or a query could SET it back on.
-    con.execute("SET enable_external_access = false")
-    con.execute("SET lock_configuration = true")
+    # Settings belong to the shared database instance, so a second connect in the
+    # same process finds them already locked and must not SET again.
+    locked = con.execute("SELECT current_setting('lock_configuration')").fetchone()
+    if not (locked and locked[0]):
+        # Lock after disabling access, or a query could SET it back on.
+        con.execute("SET enable_external_access = false")
+        con.execute("SET lock_configuration = true")
     return con

@@ -129,3 +129,23 @@ def test_segment_churn_top_n_limits_results(con, layer, config):
 def test_segment_churn_qvalues_never_below_pvalues(con, layer, config):
     segments = analytics.segment_churn(con, layer, config, group_by=["city"], top_n=200)
     assert all(0.0 <= s.q_value <= 1.0 for s in segments)
+
+
+def test_segment_churn_quotes_filter_values_safely(con, layer, config):
+    segments = analytics.segment_churn(
+        con, layer, config, group_by=["contract"], filters={"city": "O'Brien"}
+    )
+    assert segments == []
+
+
+def test_segment_churn_filter_cannot_inject_sql(con, layer, config):
+    segments = analytics.segment_churn(
+        con, layer, config, group_by=["contract"], filters={"city": "x' OR 1=1 --"}
+    )
+    assert segments == []
+
+
+@pytest.mark.parametrize("group_by", [[], ["contract", "internet_type", "offer", "city"]])
+def test_segment_churn_rejects_wrong_dimension_count(con, layer, config, group_by):
+    with pytest.raises(ValueError, match="group_by"):
+        analytics.segment_churn(con, layer, config, group_by=group_by)

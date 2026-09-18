@@ -132,3 +132,61 @@ def test_verified_examples_all_pass_the_guard(layer, config):
 )
 def test_no_mutation_ever_passes(layer, config, verb, target):
     assert not check(f"{verb} {target}", layer, config).ok
+
+
+@pytest.mark.parametrize("max_rows", [0, -5])
+def test_with_max_rows_rejects_non_positive(config, max_rows):
+    with pytest.raises(ValueError, match="max_rows"):
+        sql_guard.with_max_rows(config, max_rows)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT * FROM read_csv('/etc/passwd')",
+        "SELECT * FROM read_parquet('/etc/passwd')",
+        "SELECT current_setting('enable_external_access')",
+        "SELECT * FROM duckdb_settings()",
+    ],
+)
+def test_typed_and_introspection_functions_are_blocked(sql, layer, config):
+    verdict = check(sql, layer, config)
+    assert not verdict.ok
+    assert "not allowed" in verdict.error
+
+
+def test_like_pattern_matching_no_domain_value_is_blocked(layer, config):
+    verdict = check("SELECT * FROM customers WHERE internet_type LIKE 'd'", layer, config)
+    assert not verdict.ok
+    assert "Fiber Optic" in verdict.error
+
+
+def test_like_is_case_sensitive_against_the_domain(layer, config):
+    assert not check("SELECT * FROM customers WHERE internet_type LIKE 'fiber%'", layer, config).ok
+    assert check("SELECT * FROM customers WHERE internet_type ILIKE 'fiber%'", layer, config).ok
+
+
+def test_like_pattern_matching_a_domain_value_passes(layer, config):
+    assert check("SELECT * FROM customers WHERE internet_type LIKE 'Fiber%'", layer, config).ok
+
+
+def test_like_on_a_free_text_column_passes(layer, config):
+    assert check("SELECT * FROM customers WHERE city LIKE 'San%'", layer, config).ok
+
+
+@pytest.mark.parametrize("limit", ["1.5", "-5", "0"])
+def test_non_positive_integer_limit_is_blocked(layer, config, limit):
+    verdict = check(f"SELECT customer_id FROM customers LIMIT {limit}", layer, config)
+    assert not verdict.ok
+    assert "LIMIT" in verdict.error
+
+
+@pytest.mark.parametrize("sql", ["SELECT * FROM customers", "SELECT c.* FROM customers c"])
+def test_select_star_warns_about_leaky_columns(sql, layer, config):
+    verdict = check(sql, layer, config)
+    assert verdict.ok
+    assert any(leaky in verdict.warnings[0] for leaky in layer.leaky())
+
+
+def test_count_star_does_not_warn(layer, config):
+    assert check("SELECT COUNT(*) FROM customers", layer, config).warnings == ()

@@ -11,6 +11,8 @@ from churn_mcp.llm import LLM
 from churn_mcp.models import RiskRanking, Segment, SemanticLayer
 
 DOMAIN_ERRORS = (UnknownColumn, UnknownValue)
+# Bad arguments (including the domain errors) and queries that parse but fail at runtime.
+TOOL_ERRORS = (ValueError, duckdb.Error)
 
 
 def envelope(result: Any, caveats: tuple[str, ...] = (), **meta: Any) -> dict[str, Any]:
@@ -61,7 +63,8 @@ def build_server(
         "with SQL, a result table and a grounded narrative."
     )
     def ask_data(question: str, synthesize: bool = True) -> dict[str, Any]:
-        r = t2sql.ask(question, con, layer, config, llm, synthesise=synthesize)
+        with con.cursor() as cur:
+            r = t2sql.ask(question, cur, layer, config, llm, synthesise=synthesize)
         return envelope(
             {
                 "question": r.question,
@@ -89,11 +92,15 @@ def build_server(
         "names and values."
     )
     def run_sql(sql: str, max_rows: int | None = None) -> dict[str, Any]:
-        scoped = sql_guard.with_max_rows(config, max_rows)
-        verdict = sql_guard.validate(sql, layer, scoped)
-        if not verdict.ok:
-            return error_envelope(verdict.error or "invalid query")
-        columns, rows = t2sql.execute(verdict.sql, con)
+        try:
+            scoped = sql_guard.with_max_rows(config, max_rows)
+            verdict = sql_guard.validate(sql, layer, scoped)
+            if not verdict.ok:
+                return error_envelope(verdict.error or "invalid query")
+            with con.cursor() as cur:
+                columns, rows = t2sql.execute(verdict.sql, cur)
+        except TOOL_ERRORS as error:
+            return error_envelope(str(error))
         return envelope(
             {"sql": verdict.sql, "table": _table(columns, rows)},
             caveats=verdict.warnings,
@@ -144,8 +151,9 @@ def build_server(
         group_by: list[str], filters: dict[str, Any] | None = None, top_n: int = 20
     ) -> dict[str, Any]:
         try:
-            segments = analytics.segment_churn(con, layer, config, group_by, filters, top_n)
-        except DOMAIN_ERRORS as error:
+            with con.cursor() as cur:
+                segments = analytics.segment_churn(cur, layer, config, group_by, filters, top_n)
+        except TOOL_ERRORS as error:
             return error_envelope(str(error))
 
         caveats: tuple[str, ...] = ()
@@ -159,7 +167,8 @@ def build_server(
         "model_card."
     )
     def at_risk_customers(top_n: int = 20) -> dict[str, Any]:
-        rankings = model.at_risk_customers(con, layer, config, top_n)
+        with con.cursor() as cur:
+            rankings = model.at_risk_customers(cur, layer, config, top_n)
         return envelope(
             [_risk_dict(r) for r in rankings],
             caveats=("Scores are correlational; validate with a holdout before acting on them.",),

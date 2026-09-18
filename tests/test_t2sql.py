@@ -1,8 +1,9 @@
 import pytest
 
-from churn_mcp import model, t2sql
+from churn_mcp import model, prompts, t2sql
 from churn_mcp.exceptions import LLMRefused
 from churn_mcp.llm import MockLLM
+from churn_mcp.models import Intent, Route
 
 
 def routed(question="What is the overall churn rate?"):
@@ -240,13 +241,14 @@ def test_model_question_without_a_card_explains_how_to_build_one(con, layer, art
     assert result.rows == ()
 
 
-def test_router_schema_and_prompt_come_from_the_intent_table():
-    assert t2sql.ROUTE_SCHEMA["properties"]["intent"]["enum"] == list(t2sql.INTENTS)
-    for intent in t2sql.INTENTS:
-        assert f"{intent}:" in t2sql.ROUTER_PROMPT
+def test_router_schema_and_prompt_cover_every_intent():
+    assert Route.model_json_schema()["$defs"]["Intent"]["enum"] == list(Intent)
+    assert set(prompts.INTENTS) == set(Intent)
+    for intent in Intent:
+        assert f"{intent}:" in prompts.ROUTER
 
 
-@pytest.mark.parametrize("intent", list(t2sql.INTENTS))
+@pytest.mark.parametrize("intent", list(Intent))
 def test_every_intent_has_a_handler(con, layer, artifacts_config, intent):
     replies = [{"intent": intent, "normalized_question": "q"}]
     if intent == "data_query":
