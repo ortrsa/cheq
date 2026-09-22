@@ -606,7 +606,7 @@ GitHub Actions: ruff, mypy, all offline suites, coverage ≥ 85% on core package
 - `churn-mcp serve`: loads artifacts (no training at startup) and starts the stdio MCP server.
 - `churn-mcp eval [--config evals/configs/D.yaml] [--ablation]`
 - `churn-mcp doctor`: masked config, versions, artifact freshness, LLM key presence, a self-test query.
-- **Makefile:** `setup`, `prepare`, `serve`, `test`, `eval`, `ablation`, `lint`, `typecheck`.
+- **No Makefile:** everything runs through `uv run` (`uv sync`, `uv run churn-mcp prepare|serve`, `uv run pytest`, `uv run python evals/run_evals.py`, `uv run ruff check`, `uv run mypy`).
 
 ---
 
@@ -615,7 +615,7 @@ GitHub Actions: ruff, mypy, all offline suites, coverage ≥ 85% on core package
 1. What it is (pitch + short demo transcript from Claude Code).
 2. What you can ask: 12 examples across simple / segmented / analytic / prescriptive.
 3. How it works: architecture diagram, the three exploration paths, the `ask_data` pipeline.
-4. **Quickstart:** uv install → `make setup prepare` → set `OPENAI_API_KEY` → connect:
+4. **Quickstart:** `uv sync` → `uv run churn-mcp prepare` → set `OPENAI_API_KEY` → connect:
    - **Claude Code:** `claude mcp add` command and a `.mcp.json` example.
    - **Codex:** a `~/.codex/config.toml` `mcp_servers` example.
    - Verify with "What is the overall churn rate?" and the expected answer.
@@ -669,7 +669,7 @@ The order is chosen so the "must run and answer simple questions" requirement is
 
 | Phase | Scope | Done when |
 |---|---|---|
-| P0 Skeleton | uv project, typed config package + validation, container, stderr JSON logs, OTel console, CLI stubs, CI | `make lint typecheck test` green; `doctor` works |
+| P0 Skeleton | uv project, typed config package + validation, container, stderr JSON logs, OTel console, CLI stubs, CI | `ruff`, `mypy`, `pytest` green; `doctor` works |
 | P1 Data & semantics | HF source (pinned), cleaning, derived `customers` view, semantic YAML, hardened DuckDB, SQL validator + rules, artifact cache | Validator unit/property tests pass; `run_sql` works; data integration tests pass |
 | P2 LLM & pipeline | OpenAI Responses client + mock, prompt renderer with cache breakpoints, all pipeline stages, `json_schema` strategy, cassettes | Offline pipeline tests pass; live smoke test answers "overall churn rate" correctly with cache reads on the 2nd call |
 | P3 MCP surface | Registry, `ask_data`, `run_sql`, `describe_dataset`, resources, envelope, result cache | Contract tests pass; Claude Code and Codex connected and answering |

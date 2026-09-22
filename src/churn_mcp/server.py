@@ -163,9 +163,9 @@ def build_server(
         except TOOL_ERRORS as error:
             return error_envelope(str(error))
 
-        caveats: tuple[str, ...] = ()
+        caveats = sql_guard.leak_warning(set(group_by) | set(filters or {}), layer)
         if any(s.suppressed for s in segments):
-            caveats = (f"Segments below {config.analytics.min_segment_size} rows are suppressed.",)
+            caveats += (f"Segments below {config.analytics.min_segment_size} rows are suppressed.",)
         return envelope([_segment_dict(s) for s in segments], caveats=caveats)
 
     @mcp.tool(

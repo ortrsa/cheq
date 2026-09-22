@@ -121,6 +121,23 @@ async def test_segment_churn_rejects_an_unknown_filter_value(mcp):
         assert body["result"] is None
 
 
+async def test_segment_churn_warns_when_grouping_by_a_leaky_column(mcp):
+    async with Client(mcp) as client:
+        result = await client.call_tool("segment_churn", {"group_by": ["satisfaction_score"]})
+        body = result.structured_content
+        assert body["result"]
+        assert any("satisfaction_score" in caveat for caveat in body["caveats"])
+
+
+async def test_segment_churn_warns_when_filtering_on_a_leaky_column(mcp):
+    async with Client(mcp) as client:
+        result = await client.call_tool(
+            "segment_churn", {"group_by": ["contract"], "filters": {"churn_score": 80}}
+        )
+        body = result.structured_content
+        assert any("churn_score" in caveat for caveat in body["caveats"])
+
+
 async def test_at_risk_customers_returns_ranked_active_customers(mcp):
     async with Client(mcp) as client:
         result = await client.call_tool("at_risk_customers", {"top_n": 3})

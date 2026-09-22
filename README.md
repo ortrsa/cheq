@@ -1,75 +1,115 @@
 # Telco Churn MCP
 
-An MCP server that answers natural-language questions about telco customer churn with
-numbers you can check. Every answer comes with the SQL that produced it, the result
-table, the assumptions made, and caveats.
+An MCP server that answers natural-language questions about telco customer churn with numbers
+you can check: every answer comes with the SQL that produced it, the result table, the
+assumptions, and the caveats.
 
 Dataset: [`aai510-group1/telco-customer-churn`](https://huggingface.co/datasets/aai510-group1/telco-customer-churn),
 7,043 customers, pinned to a commit so results are reproducible.
 
-## What you can ask
+Design details (pipeline, model, evaluation) are in `docs/design.pdf` and `SPEC_telco_churn_mcp.md`.
+Printed study guides (Hebrew) are in `pdf_to_print/`, rebuilt with `pdf_to_print/render.sh`.
 
-- "What is the overall churn rate?"
-- "Churn rate for fiber customers on month-to-month contracts"
-- "How much monthly revenue did we lose to churn?"
-- "Which contract type has the worst churn?"
-- "Does satisfaction score explain churn?" *(it explains why it can't)*
-- "Which segments churn significantly more than average?" → `segment_churn`
-- "Which active customers are most likely to leave, and why?" → `at_risk_customers`
-- "Delete all churned customers" *(refused before any SQL is written)*
+## Requirements
 
-## How it works
+- Python 3.12
+- [uv](https://docs.astral.sh/uv/)
+- An OpenAI API key (only `ask_data` needs it; the other tools work without one)
 
-Tabular data needs counting and aggregation, which retrieval over rows can't do, so the
-core is **governed text-to-SQL** rather than RAG:
+Dependencies are declared in `pyproject.toml` and installed by `uv sync`: `mcp`, `duckdb`,
+`sqlglot`, `openai`, `pydantic-settings`, `pandas`, `scikit-learn`, `scipy`, `huggingface-hub`,
+`typer`, `pyyaml`, `python-dotenv`.
 
-```
-question → route → generate SQL → guard (AST) → execute (sandbox) → repair → synthesize → ground
-```
+## Environment variables
 
-- **Route**: a cheap model rejects unsafe or off-topic questions before any SQL exists, and sends
-  questions about the churn model itself (score, AUC, features) to the model card instead of SQL.
-- **Generate**: the prompt carries a semantic layer (`config/semantic.yaml`): every column
-  with its role and exact values, metric definitions, known data traps, 15 verified examples.
-- **Guard** (`sql_guard.py`): parses the SQL with sqlglot and blocks anything that is not a
-  single SELECT, unknown tables/columns, file-reading functions, and literals outside a
-  column's value domain. Adds `LIMIT` and a row count to grouped rates.
-- **Execute**: DuckDB opened read-only, external access disabled, configuration locked.
-- **Repair**: a blocked or failed query goes back to the model with a specific hint
-  ("Did you mean `monthly_charge`?", "Valid values: Cable, DSL, Fiber Optic..."), up to 2 times.
-- **Ground**: every number in the narrative must match a result cell, or the narrative is
-  withheld and only the table is returned.
+| Variable | Required | Purpose |
+|---|---|---|
+| `OPENAI_API_KEY` | for `ask_data` | LLM calls (routing, SQL generation, synthesis) |
+| `PYTHONPATH` | when registering the server | Point at `<repo>/src` so clients can import `churn_mcp` (see Troubleshooting) |
+| `CHURN_MCP__<SECTION>__<KEY>` | no | Override any setting, e.g. `CHURN_MCP__T2SQL__GENERATOR_MODEL`, `CHURN_MCP__SECURITY__MAX_ROWS` |
 
-Two questions need more than SQL, so they get deterministic tools:
+The key is read from `.env` at the repo root, so MCP clients don't need it passed in. An
+already-exported `OPENAI_API_KEY` (from `~/.zshrc`, for example) wins over `.env`, and then no
+`.env` is needed at all — but only if the client inherits your shell environment. A client
+launched from the Dock or Finder (Claude Desktop) does not read `~/.zshrc`; give it the key in
+the `env` block of the MCP config, or keep it in `.env`.
 
-- **`segment_churn`**: churn by 1-3 dimensions with Wilson confidence intervals, lift, and
-  Benjamini-Hochberg q-values, so "significantly worse" means something. Small segments are flagged.
-- **`at_risk_customers`**: logistic regression scored out-of-fold, ranked by probability x ARR,
-  with up to three risk-raising reasons per customer (e.g. `contract=Month-to-Month`). A leakage firewall blocks outcome columns, exit-survey
-  fields and protected attributes from training.
+## LLM models
 
-## Quickstart
+`ask_data` calls OpenAI GPT-5.6 through the Responses API, with one model per stage (defaults in
+`src/churn_mcp/config/t2sql.py`):
 
-Requires Python 3.12 and [uv](https://docs.astral.sh/uv/).
+| Stage | Model | Reasoning effort | Override |
+|---|---|---|---|
+| Router | `gpt-5.6-luna` | `none` | `CHURN_MCP__T2SQL__ROUTER_MODEL` |
+| SQL generation and repair | `gpt-5.6-terra` | `medium` | `CHURN_MCP__T2SQL__GENERATOR_MODEL` |
+| Answer synthesis | `gpt-5.6-luna` | `low` | `CHURN_MCP__T2SQL__SYNTHESIZER_MODEL` |
+
+Each model can be set to `gpt-5.6-luna`, `gpt-5.6-terra` or `gpt-5.6-sol`; effort is set the same
+way with `..._EFFORT` (`none`, `low`, `medium`, `high`).
+
+## Setup
 
 ```bash
 git clone <this repo> && cd cheq
-make setup                      # uv sync
+uv sync                         # install dependencies
 cp .env.example .env            # then set OPENAI_API_KEY
-make prepare                    # download data, build DuckDB, train model, write model card
-make test                       # offline, no API key needed
+uv run churn-mcp prepare        # download data, build DuckDB, train model, write model card
+uv run pytest -q                # offline, no API key needed
 ```
 
-### Connect to Claude Code
+`prepare` must run once before the server is useful.
+
+The eval suite calls the live API, so it needs `OPENAI_API_KEY`. It writes `evals/report.md` and
+`evals/results.json`:
+
+```bash
+uv run python evals/run_evals.py
+```
+
+## Run
+
+```bash
+uv run churn-mcp serve
+```
+
+The server speaks MCP over stdio, so normally you don't start it by hand — the client below
+launches it for you.
+
+## Connect to Claude Code
+
+CLI:
 
 ```bash
 claude mcp add telco-churn -s user -e PYTHONPATH=/absolute/path/to/cheq/src \
   -- uv --directory /absolute/path/to/cheq run churn-mcp serve
 ```
 
-### Connect to Codex
+Or by hand, in `.mcp.json` at your project root (or `~/.claude.json` for user scope). The same
+JSON works in Claude Desktop's `claude_desktop_config.json`:
 
-In `~/.codex/config.toml`:
+```json
+{
+  "mcpServers": {
+    "telco-churn": {
+      "command": "uv",
+      "args": ["--directory", "/absolute/path/to/cheq", "run", "churn-mcp", "serve"],
+      "env": {
+        "PYTHONPATH": "/absolute/path/to/cheq/src"
+      }
+    }
+  }
+}
+```
+
+## Connect to Codex
+
+```bash
+codex mcp add telco-churn --env PYTHONPATH=/absolute/path/to/cheq/src \
+  -- uv --directory /absolute/path/to/cheq run churn-mcp serve
+```
+
+Or in `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.telco-churn]
@@ -78,13 +118,10 @@ args = ["--directory", "/absolute/path/to/cheq", "run", "churn-mcp", "serve"]
 env = { PYTHONPATH = "/absolute/path/to/cheq/src" }
 ```
 
-Or `codex mcp add telco-churn --env PYTHONPATH=/absolute/path/to/cheq/src -- uv --directory /absolute/path/to/cheq run churn-mcp serve`.
+## Verify
 
-`PYTHONPATH` isn't strictly required, but it keeps the server importable on macOS setups that hide
-the virtualenv's `.pth` files (see Troubleshooting).
-
-The key is read from `.env` at the repo root, so neither client needs it passed in.
-Verify with: *"What is the overall churn rate?"* The answer should be **26.5%** across 7,043 customers.
+Ask the client: *"What is the overall churn rate?"* The answer should be **26.5%** across
+7,043 customers.
 
 ## MCP surface
 
@@ -93,7 +130,7 @@ Verify with: *"What is the overall churn rate?"* The answer should be **26.5%** 
 | `ask_data(question, synthesize=True)` | Natural-language question → SQL, table, grounded answer |
 | `run_sql(sql, max_rows?)` | Your own SELECT, through the same guard and sandbox |
 | `describe_dataset(columns?)` | Columns, roles, exact values, metrics, traps |
-| `segment_churn(group_by, filters?, top_n=20)` | Churn by segment with CI, lift, q-values |
+| `segment_churn(group_by, filters?, top_n=20)` | Churn by segment with CI, lift, q-values; caveat when grouping or filtering by a leaky column |
 | `at_risk_customers(top_n=20)` | Active customers ranked by expected revenue loss |
 | `model_card()` | The model's AUC and features. Errors clearly before `prepare` |
 
@@ -105,162 +142,12 @@ Verify with: *"What is the overall churn rate?"* The answer should be **26.5%** 
 Every tool returns `{result, caveats, meta}`. Errors come back as `result: null` with
 `meta.error`, never as a crash.
 
-## Models and configuration
-
-| Stage | Model | Reasoning effort | Why |
-|---|---|---|---|
-| Router | `gpt-5.6-luna` | none | Classification only; cheapest and fastest |
-| SQL generation and repair | `gpt-5.6-terra` | medium | Needs structured reasoning at a reasonable cost |
-| Answer synthesis | `gpt-5.6-luna` | low | Short summaries; grounding catches wrong numbers |
-
-All calls use the OpenAI Responses API with strict JSON-schema output. The key comes from
-`OPENAI_API_KEY`. Without a key the server still starts: `ask_data` returns a clear
-"LLM disabled" error and the other four tools work normally.
-
-Settings live in `src/churn_mcp/config/` as typed, frozen classes. Override any of them
-with environment variables, `CHURN_MCP__<SECTION>__<KEY>`:
-
-```bash
-CHURN_MCP__T2SQL__GENERATOR_MODEL=gpt-5.6-sol
-CHURN_MCP__SECURITY__MAX_ROWS=500
-```
-
-The LLM provider sits behind an abstract class (`llm/base.py`), so swapping to another
-provider is one new subclass.
-
-## Evaluation
-
-30 held-out questions (disjoint from the verified examples): 10 simple, 8 segmented,
-6 data traps, 4 adversarial, 2 off-topic. Run with `make eval` (needs a key).
-
-Each config adds one component, so the table shows what each part contributes:
-
-| Config | Adds | Accuracy | Traps | Adversarial blocked | Avg latency | Cache hit |
-|---|---|---|---|---|---|---|
-| A | Column names only | 93% | 67% | 100% | 6.2s | 0% |
-| B | + value domains, traps | 100% | 100% | 100% | 7.0s | 63% |
-| C | + verified examples | 100% | 100% | 100% | 5.8s | 79% |
-| D | + repair loop (default) | 100% | 100% | 100% | 5.7s | 78% |
-
-Simple, segmented, adversarial and off-topic questions pass under every config. The semantic
-layer earns its place on traps: without it the model reports Offer E's churn as if the offer
-caused it, and misreads "customers who joined this quarter" because it doesn't know `Joined`
-is a status. Examples and repair add no accuracy on this set, which is already at its ceiling,
-but examples make answers faster.
-
-Read this as a smoke test, not a benchmark: 30 questions, one run, written by me. An earlier
-run scored config D at 90%. That run exposed an inconsistency, now fixed (the same question
-could include or exclude Joined customers), and one answer withheld by the grounding check.
-Full results: `evals/report.md` and `evals/results.json`.
-
-## Model
-
-Logistic regression, 5-fold out-of-fold scoring. A one-off leakage ablation shows why the
-firewall matters:
-
-| Features | AUC |
-|---|---|
-| Allowed features only | 0.893 |
-| Plus the leaky columns declared in `semantic.yaml` (`satisfaction_score`, `churn_score`) | 0.998 |
-
-The second row is an experiment, not a model: it is not trained by `prepare` and not returned by
-`model_card`, because a user asking how good the model is should get one number.
-`test_leaky_columns_would_inflate_auc` keeps the claim checked. To reproduce it:
-
-```python
-from churn_mcp import data, model, semantic
-from churn_mcp.config import get_config
-
-config = get_config()
-con, layer = data.connect(config), semantic.load(config)
-columns = [*model.feature_columns(layer, config), *layer.leaky()]
-print(model._fit(con, columns, config).auc)  # bypasses the firewall on purpose
-```
-
-### Feature choices
-
-Redundant columns are excluded in `ALWAYS_EXCLUDED` (`model.py`), next to `arr`. Each one is an
-exact or near-exact function of other features. They do not change the AUC (0.894 before, 0.893
-after), but with them the design matrix was rank-deficient (42 columns, rank 39), so any single
-coefficient, and every per-customer reason built from it, was one of many equally good answers.
-A test now checks full rank.
-
-| Excluded | Why |
-|---|---|
-| `total_revenue` | exactly `total_charges` + long distance + extra data - refunds |
-| `total_charges` | tenure x `monthly_charge` (r = 0.9996) |
-| `num_addons` | exactly the sum of the seven add-on flags |
-| `internet_service` | exactly the inverse of `internet_type = 'No Internet'` |
-| `tenure_in_months` | duplicates `tenure_bucket`; the bucket keeps the non-linear shape (AUC 0.893 vs 0.892) |
-| `number_of_referrals`, `referred_a_friend` | replaced by `referral_bucket` (0 / 1 / 2-3 / 4+), see below |
-
-Churn is not monotonic in referrals: 33% at 0, 47% at 1, 12% at 2-3, 4% at 4+. A linear model
-can only fit that with two correlated columns of opposite sign (`referred_a_friend` positive,
-`number_of_referrals` negative). Predictions were fine, but the reasons were not: every customer
-who had referred anyone got `referred_a_friend=1` as a risk reason, including customers with 2-3
-referrals, whose referrals actually protect them. `referral_bucket` (built in `data.clean`, like
-`tenure_bucket`) lets the model learn each band directly (1: +1.17, 2-3: -0.68, 4+: -1.82 vs. 0)
-at no AUC cost (0.8933 vs 0.8934), and the reason now reads `referral_bucket=1` only for that group.
-
-`monthly_charge` is kept on purpose. It is the revenue at risk and the lever retention teams
-actually pull. The cost: price is almost fully determined by the services a customer holds
-(R^2 = 0.993 against internet type and add-ons), so the model reads every other coefficient
-"at the same price". That is why `internet_type = Fiber Optic` gets a negative coefficient even
-though fiber customers churn more (41% vs 27% overall): the fiber effect is carried by the price.
-Read the coefficients as conditional effects, not as standalone drivers.
-
-### How the reasons are computed
-
-For each customer, contribution = coefficient x (value - average customer's value), with
-one-hot columns centred like numeric ones, then summed back to their source column. Only
-contributions that raise risk are returned, largest first, named `column=value`. Before this,
-one-hots were measured against their dropped category while numeric columns were measured
-against the mean, and reasons were ranked by absolute value, so a risk-lowering term (e.g.
-fiber at -1.28) could be listed as a "reason". Reasons are associations, not causes.
-
-The model is trained once per server process, on the first `at_risk_customers` call, instead of
-re-running 5-fold cross-validation on every call.
-
-## Project layout
-
-```
-config/semantic.yaml        semantic layer: columns, values, metrics, traps, examples
-src/churn_mcp/
-  config/                   typed settings, one file per section
-  models/                   dataclasses
-  exceptions/               error types
-  llm/                      LLM abstraction, OpenAI client, mock
-  data.py                   download, clean, build sealed DuckDB
-  semantic.py               load the semantic layer
-  sql_guard.py              AST validation and rewrites
-  t2sql.py                  the ask_data pipeline
-  analytics.py              segment_churn and its statistics
-  model.py                  churn model, firewall, at_risk_customers
-  server.py                 MCP tools and resources
-  cli.py                    prepare, serve
-evals/                      questions, runner, report
-tests/                      offline tests, LLM mocked
-```
-
-## Limitations and roadmap
-
-- Churn is one quarter of one state, so there is no trend or geographic comparison.
-- `at_risk_customers` is correlational. Validate with a holdout before acting on it.
-- Known model limitations, not yet fixed:
-  - The 454 `Joined` customers are trained as non-churners although they joined mid-quarter and
-    had little time to churn. Training without them (and still scoring them) is cleaner.
-  - `offer` is confounded with tenure (Offer A: 70 months average, Offer E: 3.7), which makes its
-    coefficients misleading while adding almost no AUC.
-- Cut from the full design (`SPEC_telco_churn_mcp.md`): driver analysis, retention campaign
-  planning with budget optimisation, grammar-constrained SQL, OpenTelemetry, result caching,
-  remote HTTP transport with auth.
-
 ## Troubleshooting
 
-- **"churn.duckdb missing"**: run `make prepare`.
+- **"churn.duckdb missing"**: run `uv run churn-mcp prepare`.
 - **`No module named 'churn_mcp'` / client shows CONNECTION_CLOSED on macOS**: Python 3.12 skips
-  `.pth` files carrying the hidden flag, and some setups keep re-applying it. Register the server with
-  `PYTHONPATH` pointing at `src`, as shown above. For a one-off fix in a shell:
+  `.pth` files carrying the hidden flag, and some setups keep re-applying it. Register the server
+  with `PYTHONPATH` pointing at `src`, as shown above. For a one-off fix in a shell:
   `chflags nohidden .venv/lib/python3.12/site-packages/*.pth`.
 - **`ask_data` says LLM disabled**: `OPENAI_API_KEY` is not in `.env` or the environment.
 - **Client can't connect**: the path in `--directory` must be absolute. Nothing may write to

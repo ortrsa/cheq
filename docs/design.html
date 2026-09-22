@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <title>Telco Churn MCP — Design</title>
 <style>
-  @page { size: A4; margin: 11mm 12mm; }
+  @page { size: A4; margin: 10mm 12mm; }
   * { box-sizing: border-box; }
-  body { font: 8.7pt/1.33 -apple-system, "Helvetica Neue", Arial, sans-serif; color: #1a1a1a; margin: 0; }
+  body { font: 8.5pt/1.33 -apple-system, "Helvetica Neue", Arial, sans-serif; color: #1a1a1a; margin: 0; }
   h1 { font-size: 15pt; margin: 0 0 1mm; letter-spacing: -0.2px; }
   .sub { color: #555; margin: 0 0 3mm; font-size: 8.6pt; }
   h2 { font-size: 9.8pt; margin: 2.6mm 0 1mm; padding-bottom: 0.6mm; border-bottom: 1.2px solid #e0245e; color: #111; text-transform: uppercase; letter-spacing: 0.4px; }
@@ -25,7 +25,7 @@
 <body>
 
 <h1>Telco Churn MCP</h1>
-<p class="sub">A local MCP server that answers natural-language questions about 7,043 telco customers with numbers you can check. Built for Claude Code and Codex.</p>
+<p class="sub">A local MCP server that answers natural-language questions about 7,043 telco customers with numbers you can check. Built for Claude Code and Codex. Repo: <code>github.com/ortrsa/cheq</code></p>
 
 <h2>Design: what it is and how it answers</h2>
 <p>The core is a <b>governed text-to-SQL pipeline</b> behind one tool, <code>ask_data</code>. Each stage is a plain function:</p>
@@ -68,7 +68,7 @@
 <tr><td>Hallucinated column or value</td><td>Exact value domains in context; AST guard blocks with a nearest-match hint; repair loop</td></tr>
 <tr><td>Correct SQL, wrong number in the answer</td><td>Grounding check; table-only fallback</td></tr>
 <tr><td>Prompt injection or destructive SQL</td><td>Router refuses first; guard allows only SELECT; read-only, network-disabled sandbox. Adversarial pass rate: 100%</td></tr>
-<tr><td>Misleading analysis</td><td>Traps for leaky fields, quarterly rate, small samples, confounded offers; caveats in every response</td></tr>
+<tr><td>Misleading analysis</td><td>Traps for leaky fields, quarterly rate, small samples, confounded offers; leaky columns flagged in SQL and segments</td></tr>
 <tr><td>Misleading model explanations</td><td>Redundant features excluded (a test checks full rank); reasons centred on the average customer and risk-raising only. Price is kept by choice, so coefficients read "at the same price"</td></tr>
 <tr><td>Ambiguous question</td><td>Documented defaults ("current customers" = active); assumptions returned with the answer</td></tr>
 <tr><td>"Model score" vs the <code>churn_score</code> column</td><td>Router sends questions about the model to its model card, answered without an LLM; questions about the column still go to SQL</td></tr>

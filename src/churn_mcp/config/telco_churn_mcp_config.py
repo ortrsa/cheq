@@ -15,8 +15,6 @@ from churn_mcp.config.t2sql import T2SQLConfig
 class TelcoChurnMcpConfig(BaseSettings):
     model_config = SettingsConfigDict(
         frozen=True,
-        # .env also holds OPENAI_API_KEY/HF_TOKEN, not config fields, so unlike a
-        # section, the root can't forbid extra keys.
         extra="ignore",
         env_prefix="CHURN_MCP__",
         env_nested_delimiter="__",
@@ -32,7 +30,6 @@ class TelcoChurnMcpConfig(BaseSettings):
     log_level: str = "INFO"
 
     def api_key(self) -> str | None:
-        # Read at call time, not stored: a frozen field would leak into model_dump() and logs.
         return os.environ.get(self.api_key_env_var) or None
 
 

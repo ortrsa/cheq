@@ -97,11 +97,13 @@ def _check_literals(tree: exp.Expression, layer: SemanticLayer) -> str | None:
         )
 
     for comparison in tree.find_all(exp.EQ, exp.NEQ):
-        if problem := verify(comparison.this, comparison.expression):
+        problem = verify(comparison.this, comparison.expression)
+        if problem:
             return problem
     for member in tree.find_all(exp.In):
         for candidate in member.expressions:
-            if problem := verify(member.this, candidate):
+            problem = verify(member.this, candidate)
+            if problem:
                 return problem
     return None
 
@@ -165,10 +167,7 @@ def _selects_star(tree: exp.Expression) -> bool:
     return any(e.is_star for select in tree.find_all(exp.Select) for e in select.expressions)
 
 
-def _leak_warning(tree: exp.Expression, layer: SemanticLayer) -> tuple[str, ...]:
-    used = {c.name for c in tree.find_all(exp.Column)}
-    if _selects_star(tree):
-        used |= set(layer.names())
+def leak_warning(used: set[str], layer: SemanticLayer) -> tuple[str, ...]:
     leaking = sorted(used & set(layer.leaky()))
     if not leaking:
         return ()
@@ -176,6 +175,13 @@ def _leak_warning(tree: exp.Expression, layer: SemanticLayer) -> tuple[str, ...]
         f"{', '.join(leaking)} is recorded at exit and separates churners almost perfectly, "
         "so it describes churn rather than explaining it.",
     )
+
+
+def _leak_warning(tree: exp.Expression, layer: SemanticLayer) -> tuple[str, ...]:
+    used = {c.name for c in tree.find_all(exp.Column)}
+    if _selects_star(tree):
+        used |= set(layer.names())
+    return leak_warning(used, layer)
 
 
 def validate(sql: str, layer: SemanticLayer, config: TelcoChurnMcpConfig) -> Verdict:
