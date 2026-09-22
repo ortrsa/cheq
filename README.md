@@ -7,7 +7,7 @@ assumptions, and the caveats.
 Dataset: [`aai510-group1/telco-customer-churn`](https://huggingface.co/datasets/aai510-group1/telco-customer-churn),
 7,043 customers, pinned to a commit so results are reproducible.
 
-Design details (pipeline, model, evaluation) are in `docs/design.pdf` and `SPEC_telco_churn_mcp.md`.
+Design details (pipeline, model, evaluation) are in `docs/design.pdf`.
 Printed study guides (Hebrew) are in `pdf_to_print/`, rebuilt with `pdf_to_print/render.sh`.
 
 ## Requirements
@@ -36,16 +36,16 @@ the `env` block of the MCP config, or keep it in `.env`.
 
 ## LLM models
 
-`ask_data` calls OpenAI GPT-6 through the Responses API, with one model per stage (defaults in
+`ask_data` calls OpenAI GPT-5.6 through the Responses API, with one model per stage (defaults in
 `src/churn_mcp/config/t2sql.py`):
 
 | Stage | Model | Reasoning effort | Override |
 |---|---|---|---|
-| Router | `gpt-6-luna` | `none` | `CHURN_MCP__T2SQL__ROUTER_MODEL` |
-| SQL generation and repair | `gpt-6-sol` | `medium` | `CHURN_MCP__T2SQL__GENERATOR_MODEL` |
-| Answer synthesis | `gpt-6-luna` | `low` | `CHURN_MCP__T2SQL__SYNTHESIZER_MODEL` |
+| Router | `gpt-5.6-luna` | `none` | `CHURN_MCP__T2SQL__ROUTER_MODEL` |
+| SQL generation and repair | `gpt-5.6-terra` | `medium` | `CHURN_MCP__T2SQL__GENERATOR_MODEL` |
+| Answer synthesis | `gpt-5.6-luna` | `low` | `CHURN_MCP__T2SQL__SYNTHESIZER_MODEL` |
 
-Each model can be set to `gpt-6-luna` or `gpt-6-sol`; effort is set the same
+Each model can be set to `gpt-5.6-luna`, `gpt-5.6-terra` or `gpt-5.6-sol`; effort is set the same
 way with `..._EFFORT` (`none`, `low`, `medium`, `high`).
 
 ## Setup

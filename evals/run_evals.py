@@ -1,4 +1,4 @@
-"""Held-out execution-accuracy eval with the A-D ablation (see TASKS.md T6).
+"""Held-out execution-accuracy eval with the A-D ablation.
 
 Run with a live OpenAI key: `uv run python evals/run_evals.py`.
 """
