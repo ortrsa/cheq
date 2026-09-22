@@ -164,7 +164,16 @@ def _add_group_count(tree: exp.Select) -> tuple[exp.Select, str | None]:
 
 
 def _selects_star(tree: exp.Expression) -> bool:
-    return any(e.is_star for select in tree.find_all(exp.Select) for e in select.expressions)
+    # A star over a CTE only re-exposes columns the CTE already named, and those are
+    # checked as columns; only a star read straight from a real table exposes everything.
+    ctes = {cte.alias_or_name for cte in tree.find_all(exp.CTE)}
+    for select in tree.find_all(exp.Select):
+        if not any(e.is_star for e in select.expressions):
+            continue
+        sources = {t.name for t in select.find_all(exp.Table) if t.parent_select is select}
+        if sources - ctes:
+            return True
+    return False
 
 
 def leak_warning(used: set[str], layer: SemanticLayer) -> tuple[str, ...]:

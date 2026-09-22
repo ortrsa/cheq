@@ -36,16 +36,16 @@ the `env` block of the MCP config, or keep it in `.env`.
 
 ## LLM models
 
-`ask_data` calls OpenAI GPT-5.6 through the Responses API, with one model per stage (defaults in
+`ask_data` calls OpenAI GPT-6 through the Responses API, with one model per stage (defaults in
 `src/churn_mcp/config/t2sql.py`):
 
 | Stage | Model | Reasoning effort | Override |
 |---|---|---|---|
-| Router | `gpt-5.6-luna` | `none` | `CHURN_MCP__T2SQL__ROUTER_MODEL` |
-| SQL generation and repair | `gpt-5.6-terra` | `medium` | `CHURN_MCP__T2SQL__GENERATOR_MODEL` |
-| Answer synthesis | `gpt-5.6-luna` | `low` | `CHURN_MCP__T2SQL__SYNTHESIZER_MODEL` |
+| Router | `gpt-6-luna` | `none` | `CHURN_MCP__T2SQL__ROUTER_MODEL` |
+| SQL generation and repair | `gpt-6-sol` | `medium` | `CHURN_MCP__T2SQL__GENERATOR_MODEL` |
+| Answer synthesis | `gpt-6-luna` | `low` | `CHURN_MCP__T2SQL__SYNTHESIZER_MODEL` |
 
-Each model can be set to `gpt-5.6-luna`, `gpt-5.6-terra` or `gpt-5.6-sol`; effort is set the same
+Each model can be set to `gpt-6-luna` or `gpt-6-sol`; effort is set the same
 way with `..._EFFORT` (`none`, `low`, `medium`, `high`).
 
 ## Setup

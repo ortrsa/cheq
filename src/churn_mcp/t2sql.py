@@ -91,10 +91,13 @@ def _cell_values(rows: tuple[tuple[Any, ...], ...]) -> list[float]:
     return values
 
 
-def ungrounded(answer: str, rows: tuple[tuple[Any, ...], ...]) -> list[str]:
-    """Numbers in the narrative that no result cell supports."""
+def ungrounded(answer: str, rows: tuple[tuple[Any, ...], ...], question: str = "") -> list[str]:
+    """Numbers in the narrative that neither a result cell nor the question supports."""
     cells = _cell_values(rows)
-    allowed = cells + [float(len(rows))]
+    # Numbers the user wrote, like "under 12 months", are restated, not computed.
+    asked = [float(token.rstrip("%").replace(",", "")) for token in NUMBER.findall(question)]
+    # Absolute values too: "14.1 points below" is how a narrative reads a -0.141 difference.
+    allowed = cells + [abs(cell) for cell in cells] + asked + [float(len(rows))]
     missing = []
     for token in NUMBER.findall(answer):
         cleaned = token.rstrip("%").replace(",", "")
@@ -182,7 +185,7 @@ def _answer_with_sql(
     result.answer = narrated["answer"]
     result.caveats += tuple(narrated["caveats"])
 
-    missing = ungrounded(result.answer, result.rows)
+    missing = ungrounded(result.answer, result.rows, question)
     if missing:
         narrated, usage = synthesize(
             question,
@@ -195,7 +198,7 @@ def _answer_with_sql(
             "Rewrite using only values present above.",
         )
         result.usage += usage
-        if ungrounded(narrated["answer"], result.rows):
+        if ungrounded(narrated["answer"], result.rows, question):
             result.answer = ""
             result.grounding = "failed"
             result.caveats += ("Narrative withheld: numbers could not be verified.",)

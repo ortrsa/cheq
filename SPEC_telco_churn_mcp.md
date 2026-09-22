@@ -36,7 +36,7 @@
 - Business-owned YAML (semantic layer, business assumptions) stays YAML; only *settings* became code.
 
 **What changed in v2.1:**
-- LLM provider switched to **OpenAI GPT-5.6** (Responses API), with a model tier and reasoning effort chosen per stage.
+- LLM provider switched to **OpenAI GPT-6** (Responses API), with a model tier and reasoning effort chosen per stage.
 - **Grammar-constrained (CFG) SQL generation** is added as a pluggable strategy and decided by data, not by default (§4.5).
 - Prompt caching is redesigned for OpenAI's explicit cache breakpoints (§10.1).
 
@@ -46,7 +46,7 @@
 
 This is a local MCP server that lets anyone ask free-form questions about the churn data and get **accurate, verifiable answers**, plus decision-grade analytics that plain SQL can't safely provide.
 
-- **`ask_data`** is a governed text-to-SQL pipeline powered by OpenAI GPT-5.6, with these stages:
+- **`ask_data`** is a governed text-to-SQL pipeline powered by OpenAI GPT-6, with these stages:
   1. route the question
   2. build semantic context
   3. generate structured SQL
@@ -114,19 +114,19 @@ This is a local MCP server that lets anyone ask free-form questions about the ch
 
 ### 3.2 Where the LLM is used
 
-All calls use the **OpenAI Responses API**. GPT-5.6 comes in three tiers: `gpt-5.6-sol` (flagship), `gpt-5.6-terra` (balanced, roughly the old "mini" tier) and `gpt-5.6-luna` (cheapest, roughly the old "nano" tier). Reasoning effort is set per stage (`none | low | medium | high | xhigh | max`).
+All calls use the **OpenAI Responses API**. GPT-6 is used in two tiers: `gpt-6-sol` (flagship) and `gpt-6-luna` (cheapest, roughly the old "nano" tier); there is no `gpt-6-terra`. Reasoning effort is set per stage (`none | low | medium | high | xhigh | max`).
 
 | Stage | Default model | Reasoning effort | Why |
 |---|---|---|---|
-| Router (intent classification) | `gpt-5.6-luna` | `none` | Simple classification; lowest latency and cost |
-| SQL generation & repair | `gpt-5.6-terra` | `medium` | Structured reasoning at a good cost/accuracy point; Sol is compared in the eval |
-| Answer synthesis | `gpt-5.6-luna` | `low` | Short summaries; the grounding verifier catches wrong numbers |
-| Eval judge (qualitative rubric only) | `gpt-5.6-sol` | `high` | Strongest judge; offline only |
+| Router (intent classification) | `gpt-6-luna` | `none` | Simple classification; lowest latency and cost |
+| SQL generation & repair | `gpt-6-sol` | `medium` | Accuracy matters most here; the other stages stay on Luna for cost |
+| Answer synthesis | `gpt-6-luna` | `low` | Short summaries; the grounding verifier catches wrong numbers |
+| Eval judge (qualitative rubric only) | `gpt-6-sol` | `high` | Strongest judge; offline only |
 
-- All models and effort levels are configurable per stage in YAML. **Pin dated snapshots** in config for reproducible evals; the bare `gpt-5.6` alias routes to Sol and can move.
+- All models and effort levels are configurable per stage in YAML. **Pin dated snapshots** in config for reproducible evals; the bare `gpt-6` alias routes to Sol and can move.
 - The key is read from `OPENAI_API_KEY`. The `LLMClient` port keeps other providers (e.g. Anthropic) as a drop-in adapter, and upgrading to a newer generation (e.g. GPT-6) is a config change validated by the eval suite.
 - **Structured outputs:** router, generator and synthesizer use strict JSON-schema output (`text.format`). The CFG strategy uses a custom tool with a Lark grammar (§4.5).
-- **Refusals:** GPT-5.6 runs real-time safety classifiers, so a refusal is handled as a normal stage outcome (logged, mapped to a structured error), never as a crash.
+- **Refusals:** GPT-6 runs real-time safety classifiers, so a refusal is handled as a normal stage outcome (logged, mapped to a structured error), never as a crash.
 - **Degraded mode:** if no key is present, the server still starts. `ask_data` returns a structured "LLM disabled" error pointing to `run_sql` and the analytic tools, so reviewers can run everything except natural-language answering without a key.
 
 ### 3.3 Three ways to explore the data
@@ -275,7 +275,7 @@ OpenAI custom tools can constrain output with a grammar (Lark or regex), so the 
 
 - **It does not fix the most important errors.** The damaging text-to-SQL mistakes on this dataset are semantic: wrong denominator, including Joined customers, reading a 12-customer segment as signal, using a leaky field. A grammar cannot tell a correct `AVG(churn)` from a misleading one.
 - **Expressiveness vs maintenance.** Real questions need CTEs, `CASE`, `FILTER (WHERE …)`, window functions and `customer_scores` joins. A grammar broad enough for that is a large artifact to maintain; a narrow one makes some valid questions unanswerable.
-- **Possible quality and latency cost.** Constrained decoding can push the model off its natural token path, and earlier practitioner reports found grammar-constrained calls slow. Both need measuring on GPT-5.6 rather than assuming.
+- **Possible quality and latency cost.** Constrained decoding can push the model off its natural token path, and earlier practitioner reports found grammar-constrained calls slow. Both need measuring on GPT-6 rather than assuming.
 - **Not a security boundary on its own.** Grammar support has had reports of non-conforming output, and the grammar could drift from the schema. The AST validator stays authoritative in every strategy.
 - **Structure split.** A custom tool emits free text, so the interpretation/assumptions metadata needs a separate structured output in the same response.
 
@@ -497,7 +497,7 @@ mcp.tool/ask_data
 
 ### 10.1 Prompt caching design
 
-GPT-5.6 supports **explicit cache breakpoints** with a **30-minute minimum cache life**. Cache writes cost 1.25× the uncached input rate and cache reads get the 90% cached-input discount, so a prefix pays for itself from its second use.
+GPT-6 supports **explicit cache breakpoints** with a **30-minute minimum cache life**. Cache writes cost 1.25× the uncached input rate and cache reads get the 90% cached-input discount, so a prefix pays for itself from its second use.
 
 - **Prompt order, static to dynamic:**
   1. tool definitions (including the generated SQL grammar, when that strategy is active), sorted and byte-stable
@@ -585,7 +585,7 @@ GPT-5.6 supports **explicit cache breakpoints** with a **30-minute minimum cache
 
 For each config: execution accuracy (overall and by category), safety pass rate, cost/question, latency, cache hit ratio.
 
-**Model comparison** on the winning config: generator `gpt-5.6-luna` vs `gpt-5.6-terra` vs `gpt-5.6-sol`, and reasoning effort `low` vs `medium` for Terra. This justifies the default model and effort choice with numbers.
+**Model comparison** on the winning config: generator `gpt-6-luna` vs `gpt-6-sol`, and reasoning effort `low` vs `medium` for Sol. This justifies the default model and effort choice with numbers.
 
 **Targets** (to verify, not claim):
 - 100% on simple questions

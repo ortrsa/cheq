@@ -181,11 +181,26 @@ def test_non_positive_integer_limit_is_blocked(layer, config, limit):
     assert "LIMIT" in verdict.error
 
 
-@pytest.mark.parametrize("sql", ["SELECT * FROM customers", "SELECT c.* FROM customers c"])
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT * FROM customers",
+        "SELECT c.* FROM customers c",
+        "WITH t AS (SELECT * FROM customers) SELECT city FROM t",
+    ],
+)
 def test_select_star_warns_about_leaky_columns(sql, layer, config):
     verdict = check(sql, layer, config)
     assert verdict.ok
     assert any(leaky in verdict.warnings[0] for leaky in layer.leaky())
+
+
+def test_star_over_a_cte_of_named_columns_does_not_warn(layer, config):
+    sql = (
+        "WITH t AS (SELECT city, SUM(monthly_charge) AS m FROM customers GROUP BY city) "
+        "SELECT *, ROW_NUMBER() OVER (ORDER BY m DESC) AS r FROM t"
+    )
+    assert check(sql, layer, config).warnings == ()
 
 
 def test_count_star_does_not_warn(layer, config):

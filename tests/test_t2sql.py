@@ -173,6 +173,13 @@ def test_synthesise_false_returns_table_only(con, layer, config):
     assert not llm.replies
 
 
+def test_numbers_restated_from_the_question_are_grounded():
+    rows = ((0.8333,),)
+    question = "Churn for customers under 12 months?"
+    assert t2sql.ungrounded("Under 12 months, churn was 83.3%.", rows, question) == []
+    assert t2sql.ungrounded("Under 12 months, churn was 83.3%.", rows) == ["12"]
+
+
 def test_guard_warnings_become_caveats(con, layer, config):
     llm = MockLLM(
         [
@@ -209,6 +216,7 @@ def test_usage_accumulates_across_stages(con, layer, config):
         ("$139,130.85 in revenue", ((139130.85,),), []),
         ("lost $1.2m", ((139130.85,),), ["1.2"]),
         ("26.5% in Q3.", ((0.26537,),), []),
+        ("14.1 points below the group", ((-0.141,),), []),
     ],
 )
 def test_grounding_number_matcher(answer, rows, expected):
