@@ -27,7 +27,6 @@ class TelcoChurnMcpConfig(BaseSettings):
     analytics: AnalyticsConfig = AnalyticsConfig()
     ml: ModelConfig = ModelConfig()
     api_key_env_var: str = "OPENAI_API_KEY"
-    log_level: str = "INFO"
 
     def api_key(self) -> str | None:
         return os.environ.get(self.api_key_env_var) or None
