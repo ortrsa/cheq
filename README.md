@@ -8,7 +8,6 @@ Dataset: [`aai510-group1/telco-customer-churn`](https://huggingface.co/datasets/
 7,043 customers, pinned to a commit so results are reproducible.
 
 Design details (pipeline, model, evaluation) are in `docs/design.pdf`.
-Printed study guides (Hebrew) are in `pdf_to_print/`, rebuilt with `pdf_to_print/render.sh`.
 
 ## Requirements
 
