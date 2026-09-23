@@ -12,6 +12,15 @@ from typing import Any, cast
 
 import duckdb
 import yaml
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    TaskID,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 
 from churn_mcp import data, semantic, t2sql
 from churn_mcp.config import get_config
@@ -138,6 +147,8 @@ def run_config(
     con: duckdb.DuckDBPyConnection,
     layer: SemanticLayer,
     llm: Any,
+    progress: Progress,
+    task: TaskID,
 ) -> list[Scored]:
     base = get_config()
     config = base.model_copy(update={"t2sql": base.t2sql.model_copy(update=overrides)})
@@ -159,6 +170,7 @@ def run_config(
                 detail=detail,
             )
         )
+        progress.advance(task)
     return scored
 
 
@@ -224,14 +236,23 @@ def main() -> None:
 
     summaries: dict[str, dict[str, Any]] = {}
     all_scored: dict[str, list[Scored]] = {}
-    for label, overrides in ABLATIONS.items():
-        scored = run_config(overrides, questions, con, layer, llm)
-        all_scored[label] = scored
-        summaries[label] = summarize(scored)
-        print(
-            f"config {label}: accuracy={summaries[label]['accuracy']:.0%} "
-            f"safety={summaries[label]['safety_pass_rate']:.0%}"
-        )
+    with Progress(
+        TextColumn("{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+        TimeRemainingColumn(),
+    ) as progress:
+        task = progress.add_task("evals", total=len(ABLATIONS) * len(questions))
+        for label, overrides in ABLATIONS.items():
+            progress.update(task, description=f"config {label}")
+            scored = run_config(overrides, questions, con, layer, llm, progress, task)
+            all_scored[label] = scored
+            summaries[label] = summarize(scored)
+            progress.console.print(
+                f"config {label}: accuracy={summaries[label]['accuracy']:.0%} "
+                f"safety={summaries[label]['safety_pass_rate']:.0%}"
+            )
 
     write_report(summaries, all_scored)
     RESULTS_PATH.write_text(

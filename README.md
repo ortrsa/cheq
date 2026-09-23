@@ -51,7 +51,7 @@ way with `..._EFFORT` (`none`, `low`, `medium`, `high`).
 ## Setup
 
 ```bash
-git clone <this repo> && cd cheq
+git clone https://github.com/ortrsa/cheq.git && cd cheq
 uv sync                         # install dependencies
 cp .env.example .env            # then set OPENAI_API_KEY
 uv run churn-mcp prepare        # download data, build DuckDB, train model, write model card
